@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+/* Remove barra de rolagem horizontal sem perder scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Animações usadas no layout */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.animate-fade-in { animation: fadeIn 280ms ease-out both; }
+.animate-fade-in-up { animation: fadeInUp 320ms ease-out both; }
+
+/* Efeito de brilho sutil */
+.shadow-glow {
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.18), 0 20px 60px rgba(0,0,0,0.55);
+}
