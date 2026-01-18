@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
     // GitHub Pages (repo: "arquivos")
-    base: '/arquivos/',
+    base: '/',
 
     server: {
       port: 3000,
