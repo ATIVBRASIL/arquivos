@@ -1,6 +1,22 @@
 @import "tailwindcss";
 
-/* Remove barra de rolagem horizontal sem perder scroll */
+/* Base garantida (não depende de config) */
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #0B0D10; /* black-900 */
+  color: #E6EAF2;      /* text-primary */
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Utilitários já usados no layout */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
@@ -11,7 +27,6 @@
 .animate-fade-in { animation: fadeIn 280ms ease-out both; }
 .animate-fade-in-up { animation: fadeInUp 320ms ease-out both; }
 
-/* Efeito de brilho sutil */
 .shadow-glow {
   box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.18), 0 20px 60px rgba(0,0,0,0.55);
 }
