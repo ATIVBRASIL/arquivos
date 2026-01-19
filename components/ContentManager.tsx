@@ -40,12 +40,16 @@ export const ContentManager: React.FC = () => {
   useEffect(() => { fetchBooks(); }, []);
 
   const handleCreateBook = async (bookData: any) => {
-    const { error } = await supabase.from('ebooks').insert([bookData]);
-    if (!error) {
+    try {
+      const { error } = await supabase.from('ebooks').insert([bookData]);
+      if (error) throw error;
+      
       setIsAdding(false);
       fetchBooks();
-    } else {
-      alert("Erro ao salvar: " + error.message);
+      alert("MISSÃO CUMPRIDA: O novo manual foi inserido no acervo!");
+    } catch (error: any) {
+      console.error("Erro no Supabase:", error);
+      alert("ERRO DE CONEXÃO: O banco recusou os dados. Motivo: " + error.message);
     }
   };
 

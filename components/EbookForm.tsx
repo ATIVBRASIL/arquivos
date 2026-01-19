@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Save, BookOpen, Clock, Tag, Layers, ImageIcon } from 'lucide-react';
+import { X, Save, Settings, FileCode, AlertCircle } from 'lucide-react';
 import { Button } from './Button';
 import { EbookLevel, EbookStatus } from '../types';
 
@@ -10,6 +10,7 @@ interface EbookFormProps {
 
 export const EbookForm: React.FC<EbookFormProps> = ({ onClose, onSave }) => {
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'settings' | 'content'>('settings');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -25,109 +26,107 @@ export const EbookForm: React.FC<EbookFormProps> = ({ onClose, onSave }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const formattedData = {
-      ...formData,
-      tags: formData.tags.split(',').map(t => t.trim()).filter(t => t !== '')
-    };
-    await onSave(formattedData);
-    setLoading(false);
+    try {
+      const formattedData = {
+        ...formData,
+        tags: formData.tags.split(',').map(t => t.trim()).filter(t => t !== '')
+      };
+      await onSave(formattedData);
+    } catch (err) {
+      alert("Erro ao processar salvamento. Verifique o console.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    // Overlay 100% opaco para eliminar qualquer interferência do fundo
-    <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center p-0 md:p-4 overflow-hidden">
-      
-      {/* Container com borda Amber destacada e fundo sólido */}
-      <div className="bg-graphite-800 border-t-4 border-amber-500 w-full max-w-5xl h-full md:h-auto md:max-h-[95vh] overflow-y-auto md:rounded-b-2xl shadow-[0_0_100px_rgba(0,0,0,1)] flex flex-col">
+    <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center p-0 md:p-6 overflow-hidden">
+      <div className="bg-graphite-800 border-2 border-amber-500/50 w-full max-w-5xl h-full md:h-[85vh] flex flex-col rounded-2xl shadow-2xl">
         
-        <header className="p-6 border-b border-graphite-700 bg-graphite-800 flex items-center justify-between sticky top-0 z-20">
+        <header className="p-6 border-b border-graphite-700 flex items-center justify-between bg-black/20">
           <div>
-            <h3 className="text-2xl font-display font-bold text-amber-500 uppercase tracking-tighter">Novo Protocolo Operacional</h3>
-            <p className="text-[10px] text-text-muted uppercase tracking-[0.2em] font-bold">Entrada de dados no sistema central</p>
+            <h3 className="text-xl font-display font-bold text-amber-500 uppercase">Editor de Protocolo</h3>
+            <div className="flex gap-4 mt-4">
+              <button 
+                type="button"
+                onClick={() => setActiveTab('settings')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'settings' ? 'bg-amber-500 text-black' : 'bg-black/40 text-text-muted hover:text-white'}`}
+              >
+                <Settings size={14} /> 1. CONFIGURAÇÕES
+              </button>
+              <button 
+                type="button"
+                onClick={() => setActiveTab('content')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'content' ? 'bg-amber-500 text-black' : 'bg-black/40 text-text-muted hover:text-white'}`}
+              >
+                <FileCode size={14} /> 2. CONTEÚDO HTML
+              </button>
+            </div>
           </div>
-          <button onClick={onClose} className="p-2 text-text-muted hover:text-amber-500 transition-colors bg-black/20 rounded-full">
-            <X size={28} />
-          </button>
+          <button onClick={onClose} className="p-2 text-text-muted hover:text-white bg-black/20 rounded-full transition-colors"><X size={24} /></button>
         </header>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-10">
-          
-          {/* GRADE PRINCIPAL */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-            <div className="space-y-6">
-              <div className="bg-black/30 p-4 rounded-xl border border-graphite-700">
-                <label className="block text-[10px] font-black text-amber-500 uppercase mb-2 tracking-widest">Identificação do Ativo</label>
-                <input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})}
-                  className="w-full bg-black border border-graphite-600 rounded-lg p-4 text-base text-text-primary focus:border-amber-500 outline-none" 
-                  placeholder="Ex: Escolta de Autoridades Nível 1" />
-              </div>
-              
-              <div className="bg-black/30 p-4 rounded-xl border border-graphite-700">
-                <label className="block text-[10px] font-black text-amber-500 uppercase mb-2 tracking-widest text-wrap">Endereço da Capa (.png ou .jpg)</label>
-                <div className="flex gap-3">
-                  <div className="bg-black p-3 rounded-lg border border-graphite-600 flex items-center justify-center">
-                    <ImageIcon className="text-text-muted" size={20} />
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden text-text-primary">
+          <div className="flex-1 overflow-y-auto p-8">
+            {activeTab === 'settings' && (
+              <div className="space-y-6 animate-fade-in">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <label className="block">
+                      <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Título</span>
+                      <input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})}
+                        className="w-full bg-black border border-graphite-600 rounded-lg p-3 mt-1 text-sm outline-none focus:border-amber-500" />
+                    </label>
+                    <label className="block">
+                      <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Link da Capa</span>
+                      <input type="url" value={formData.cover_url} onChange={e => setFormData({...formData, cover_url: e.target.value})}
+                        className="w-full bg-black border border-graphite-600 rounded-lg p-3 mt-1 text-sm outline-none focus:border-amber-500" />
+                    </label>
                   </div>
-                  <input type="url" value={formData.cover_url} onChange={e => setFormData({...formData, cover_url: e.target.value})}
-                    className="flex-1 bg-black border border-graphite-600 rounded-lg p-4 text-sm text-text-primary focus:border-amber-500 outline-none" 
-                    placeholder="https://link-da-imagem.com/capa.png" />
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <label className="block">
+                        <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Nível</span>
+                        <select value={formData.level} onChange={e => setFormData({...formData, level: e.target.value as EbookLevel})}
+                          className="w-full bg-black border border-graphite-600 rounded-lg p-3 mt-1 text-sm outline-none">
+                          <option value="Básico">Básico</option>
+                          <option value="Intermediário">Intermediário</option>
+                          <option value="Avançado">Avançado</option>
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Tempo</span>
+                        <input type="text" value={formData.read_time} onChange={e => setFormData({...formData, read_time: e.target.value})}
+                          className="w-full bg-black border border-graphite-600 rounded-lg p-3 mt-1 text-sm outline-none" />
+                      </label>
+                    </div>
+                    <label className="block">
+                      <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Resumo Operacional</span>
+                      <textarea rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}
+                        className="w-full bg-black border border-graphite-600 rounded-lg p-3 mt-1 text-sm outline-none resize-none" />
+                    </label>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-               <div className="bg-black/30 p-4 rounded-xl border border-graphite-700">
-                <label className="block text-[10px] font-black text-amber-500 uppercase mb-2 tracking-widest">Classificação</label>
-                <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}
-                  className="w-full bg-black border border-graphite-600 rounded-lg p-4 text-sm text-text-primary focus:border-amber-500 outline-none cursor-pointer">
-                  <option>Proteção Executiva</option>
-                  <option>Inteligência</option>
-                  <option>APH Tático</option>
-                  <option>Combate</option>
-                  <option>Gestão</option>
-                </select>
+            {activeTab === 'content' && (
+              <div className="h-full flex flex-col space-y-4 animate-fade-in">
+                <textarea 
+                  required 
+                  value={formData.content_html} 
+                  onChange={e => setFormData({...formData, content_html: e.target.value})}
+                  className="flex-1 w-full bg-black p-6 rounded-xl border border-graphite-600 text-sm font-mono text-amber-500/90 outline-none focus:border-amber-500" 
+                  placeholder="Cole seu código HTML aqui..."
+                />
               </div>
-
-              <div className="bg-black/30 p-4 rounded-xl border border-graphite-700">
-                <label className="block text-[10px] font-black text-amber-500 uppercase mb-2 tracking-widest">Nível de Acesso</label>
-                <select value={formData.level} onChange={e => setFormData({...formData, level: e.target.value as EbookLevel})}
-                  className="w-full bg-black border border-graphite-600 rounded-lg p-4 text-sm focus:border-amber-500 outline-none cursor-pointer">
-                  <option value="Básico">BÁSICO</option>
-                  <option value="Intermediário">INTERMEDIÁRIO</option>
-                  <option value="Avançado">AVANÇADO</option>
-                </select>
-              </div>
-
-              <div className="bg-black/30 p-4 rounded-xl border border-graphite-700 sm:col-span-2">
-                <label className="block text-[10px] font-black text-amber-500 uppercase mb-2 tracking-widest">Tempo de Estudo Estimado</label>
-                <div className="flex items-center gap-3">
-                   <Clock size={18} className="text-text-muted" />
-                   <input type="text" value={formData.read_time} onChange={e => setFormData({...formData, read_time: e.target.value})}
-                    className="flex-1 bg-black border border-graphite-600 rounded-lg p-4 text-sm focus:border-amber-500 outline-none" placeholder="Ex: 1h 30min" />
-                </div>
-              </div>
-            </div>
+            )}
           </div>
 
-          <div className="bg-black/30 p-6 rounded-xl border border-graphite-700 space-y-6">
-            <div>
-              <label className="block text-[10px] font-black text-amber-500 uppercase mb-2 tracking-widest">Resumo Estratégico (O que o operador aprenderá?)</label>
-              <textarea rows={2} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}
-                className="w-full bg-black border border-graphite-600 rounded-lg p-4 text-sm focus:border-amber-500 outline-none resize-none" placeholder="Descrição curta para o card..." />
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-black text-amber-500 uppercase mb-2 tracking-widest">Corpo do Manual (HTML Operacional)</label>
-              <textarea rows={12} required value={formData.content_html} onChange={e => setFormData({...formData, content_html: e.target.value})}
-                className="w-full bg-black border border-graphite-600 rounded-lg p-6 text-sm font-mono text-amber-500/80 outline-none focus:border-amber-500 transition-all shadow-inner" 
-                placeholder="<div><h2>Introdução</h2><p>Texto aqui...</p></div>" />
-            </div>
-          </div>
-
-          <footer className="flex items-center justify-end gap-6 pt-6 border-t border-graphite-700 pb-4">
-            <button type="button" onClick={onClose} className="text-text-muted hover:text-white uppercase text-xs font-bold tracking-widest px-4 py-2">Descartar</button>
-            <Button type="submit" disabled={loading} icon={<Save size={20} />} className="px-12 py-4 text-lg shadow-glow">
-              {loading ? 'GRAVANDO...' : 'EFETIVAR CADASTRO'}
+          <footer className="p-6 border-t border-graphite-700 bg-black/20 flex justify-end gap-4">
+            <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={loading} icon={<Save size={20} />} className="px-12 shadow-glow">
+              {loading ? 'GRAVANDO...' : 'FINALIZAR E SALVAR'}
             </Button>
           </footer>
         </form>
