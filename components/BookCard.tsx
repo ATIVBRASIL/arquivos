@@ -1,56 +1,58 @@
 import React from 'react';
-import { Book } from '../types';
-import { PlayCircle } from 'lucide-react';
+import { Book, EbookLevel } from '../types';
+import { Clock, BookOpen, ChevronRight } from 'lucide-react';
 
 interface BookCardProps {
   book: Book;
   onClick: (book: Book) => void;
-  featured?: boolean;
 }
 
-export const BookCard: React.FC<BookCardProps> = ({ book, onClick, featured = false }) => {
-  // Design System:
-  // Fundo: graphite-800
-  // Radius: 12-16px
-  // Hover: Zoom 1.02, Glow âmbar discreto
-  
+export const BookCard: React.FC<BookCardProps> = ({ book, onClick }) => {
   return (
     <div 
       onClick={() => onClick(book)}
-      className={`
-        group relative flex-shrink-0 cursor-pointer overflow-hidden rounded-xl bg-graphite-800 border border-graphite-700
-        transition-all duration-300 ease-out
-        hover:scale-[1.02] hover:border-amber-500/30 hover:shadow-glow
-        ${featured ? 'w-[280px] h-[420px]' : 'w-[160px] md:w-[200px] h-[280px] md:h-[340px]'}
-      `}
+      className="bg-graphite-800 border border-graphite-700 rounded-2xl overflow-hidden cursor-pointer group hover:border-amber-500/50 transition-all shadow-xl flex flex-col h-full"
     >
-      {/* Image with overlay gradient */}
-      <div className="absolute inset-0">
+      {/* Container da Imagem */}
+      <div className="aspect-[16/9] relative overflow-hidden bg-black">
         <img 
           src={book.coverUrl} 
-          alt={book.title} 
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-80 group-hover:opacity-100"
+          alt={book.title}
+          className="w-full h-full object-cover opacity-70 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black-900 via-black-900/40 to-transparent" />
+        {/* Badge de Nível sobre a imagem */}
+        <div className="absolute bottom-3 right-3">
+          <span className="bg-black/60 backdrop-blur-md text-amber-500 text-[9px] font-black px-2 py-1 rounded border border-amber-500/20 uppercase tracking-tighter">
+            {book.level}
+          </span>
+        </div>
       </div>
 
-      {/* Content Overlay */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 flex flex-col justify-end h-full">
-        <span className="text-amber-500 text-xs font-bold tracking-wider uppercase mb-1 font-display">
+      {/* Conteúdo do Card - Ajustado para evitar cortes */}
+      <div className="p-5 flex flex-col flex-1">
+        {/* Categoria com margem superior de segurança */}
+        <span className="text-amber-500 text-[10px] font-black uppercase tracking-[0.15em] mb-2 pt-1">
           {book.category}
         </span>
-        <h3 className={`font-display font-bold text-text-primary leading-tight mb-1 ${featured ? 'text-2xl' : 'text-lg'}`}>
+        
+        <h3 className="text-lg font-display font-bold text-text-primary leading-tight mb-3 group-hover:text-amber-500 transition-colors line-clamp-2">
           {book.title}
         </h3>
         
-        {/* Visible only on hover or featured */}
-        <div className={`transition-all duration-300 transform translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 ${featured ? 'translate-y-0 opacity-100' : ''}`}>
-          <p className="text-xs text-text-secondary line-clamp-2 mb-3">
-            {book.description}
-          </p>
-          <div className="flex items-center text-amber-500 text-sm font-medium gap-2">
-            <PlayCircle size={16} />
-            <span>Ler Agora</span>
+        <p className="text-xs text-text-muted line-clamp-2 mb-6 leading-relaxed">
+          {book.description}
+        </p>
+
+        {/* Rodapé do Card */}
+        <div className="mt-auto flex items-center justify-between border-t border-graphite-700 pt-4">
+          <div className="flex items-center gap-4 text-text-muted">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold">
+              <Clock size={12} className="text-amber-500/70" />
+              {book.readTime}
+            </div>
+          </div>
+          <div className="flex items-center gap-1 text-amber-500 text-[10px] font-black uppercase tracking-widest">
+            Acessar <ChevronRight size={14} />
           </div>
         </div>
       </div>
