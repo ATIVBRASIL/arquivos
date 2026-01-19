@@ -7,7 +7,7 @@ import { Button } from './components/Button';
 import { CATEGORIES } from './constants';
 import { Book, User, ViewState, UserRole } from './types';
 import { Shield } from 'lucide-react';
-import { supabase } from './supabase';
+import { supabase } from './src/lib/supabase';
 
 // Tipo local para bater com as colunas do banco de dados Profiles
 type Profile = {
