@@ -3,7 +3,8 @@ import { Users, BookOpen, Mail, LayoutDashboard, ArrowLeft } from 'lucide-react'
 import { User } from '../types';
 import { UsersManager } from './UsersManager';
 import { ContentManager } from './ContentManager';
-import { Overview } from './Overview'; // NOVO: Importando a inteligência de dados
+import { Overview } from './Overview';
+import { MessagesManager } from './MessagesManager'; // Importação da Inbox
 
 interface AdminDashboardProps {
   user: User;
@@ -77,20 +78,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onClose })
       {/* Área de Conteúdo Dinâmico */}
       <main className="flex-1 p-6 md:p-10 overflow-y-auto">
         
-        {/* Substituímos todo o bloco de métricas estáticas pela chamada do Overview */}
+        {/* Renderização Condicional das Abas */}
         {activeTab === 'overview' && <Overview />}
 
         {activeTab === 'users' && <UsersManager />}
 
         {activeTab === 'content' && <ContentManager />}
 
-        {activeTab === 'inbox' && (
-          <div className="flex flex-col items-center justify-center h-full py-20 text-text-muted animate-fade-in">
-            <Mail size={48} className="mb-4 opacity-20" />
-            <p className="text-lg font-display uppercase tracking-widest">Módulo de Comunicação</p>
-            <p className="text-xs italic">Configuração da Inbox tática em progresso.</p>
-          </div>
-        )}
+        {/* Módulo de Mensagens agora totalmente conectado */}
+        {activeTab === 'inbox' && <MessagesManager />}
+        
       </main>
     </div>
   );
