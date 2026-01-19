@@ -55,3 +55,19 @@ export interface Message {
 // --- ESTADOS DE VISUALIZAÇÃO DO APP ---
 
 export type ViewState = 'login' | 'home' | 'reader' | 'admin'; [cite: 7, 50]
+// --- DEFINIÇÕES DE CERTIFICAÇÃO (PRD v1.1) ---
+
+export interface UserExam {
+  id: string;
+  user_id: string;
+  ebook_id: string;
+  score: number;
+  status: 'approved' | 'failed';
+  cert_code: string;
+  created_at: string;
+}
+
+// Extensão do tipo Book para incluir carga horária se necessário
+export interface BookWithStats extends Book {
+  workload?: number; // Carga horária em horas
+}
