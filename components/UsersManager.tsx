@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../supabase';
+import { supabase } from '../src/lib/supabase'; // Caminho corrigido para o build
 import { User, UserRole } from '../types';
 import { UserPlus, Search, ShieldAlert, Calendar, CheckCircle2, Ban } from 'lucide-react';
 import { Button } from './Button';
@@ -9,7 +9,7 @@ export const UsersManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Busca os usuários reais do Supabase (Módulo 3.2 do RPD)
+  // Busca os usuários reais do Supabase (Módulo 3.2 do RPD) [cite: 5, 60]
   const fetchUsers = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -48,7 +48,7 @@ export const UsersManager: React.FC = () => {
         </Button>
       </div>
 
-      {/* Barra de Busca (Requisito 3.2) */}
+      {/* Barra de Busca (Requisito 3.2) [cite: 60, 132] */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted w-5 h-5" />
         <input 
@@ -60,24 +60,26 @@ export const UsersManager: React.FC = () => {
         />
       </div>
 
-      {/* Tabela de Usuários (Conforme Seção 3.2 do RPD) */}
-      <div className="bg-graphite-800 border border-graphite-700 rounded-xl overflow-hidden">
+      {/* Tabela de Usuários (Conforme Seção 3.2 do RPD) [cite: 60-68] */}
+      <div className="bg-graphite-800 border border-graphite-700 rounded-xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-black-900/50 text-text-muted text-xs uppercase tracking-widest">
-                <th className="px-6 py-4 font-semibold">Operador</th>
-                <th className="px-6 py-4 font-semibold">Nível / Role</th>
-                <th className="px-6 py-4 font-semibold">Expiração</th>
-                <th className="px-6 py-4 font-semibold">Status</th>
-                <th className="px-6 py-4 font-semibold text-right">Ações</th>
+                <th className="px-6 py-4 font-semibold text-amber-500/50">Operador</th>
+                <th className="px-6 py-4 font-semibold text-amber-500/50">Nível / Role</th>
+                <th className="px-6 py-4 font-semibold text-amber-500/50">Expiração</th>
+                <th className="px-6 py-4 font-semibold text-amber-500/50">Status</th>
+                <th className="px-6 py-4 font-semibold text-right text-amber-500/50">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-graphite-700">
               {loading ? (
-                <tr><td colSpan={5} className="px-6 py-10 text-center text-text-muted">Sincronizando banco de dados...</td></tr>
+                <tr><td colSpan={5} className="px-6 py-10 text-center text-text-muted italic">Sincronizando base de dados tática...</td></tr>
+              ) : filteredUsers.length === 0 ? (
+                <tr><td colSpan={5} className="px-6 py-10 text-center text-text-muted">Nenhum operador encontrado.</td></tr>
               ) : filteredUsers.map((u) => (
-                <tr key={u.id} className="hover:bg-graphite-700/30 transition-colors">
+                <tr key={u.id} className="hover:bg-graphite-700/30 transition-colors border-l-2 border-transparent hover:border-l-amber-500">
                   <td className="px-6 py-4">
                     <div className="font-medium text-text-primary">{u.name}</div>
                     <div className="text-xs text-text-muted">{u.email}</div>
@@ -87,23 +89,23 @@ export const UsersManager: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 text-sm text-text-secondary">
                     <div className="flex items-center gap-2">
-                      <Calendar size={14} />
-                      {u.expiresAt ? new Date(u.expiresAt).toLocaleDateString() : 'Vitalício'}
+                      <Calendar size={14} className="text-amber-500/50" />
+                      {u.expiresAt ? new Date(u.expiresAt).toLocaleDateString('pt-BR') : 'Vitalício'}
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     {u.subscriptionStatus === 'active' ? (
-                      <span className="flex items-center gap-1 text-green-500 text-xs font-bold uppercase">
-                        <CheckCircle2 size={14} /> Ativo
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-500/10 text-green-500 text-[10px] font-bold uppercase border border-green-500/20">
+                        <CheckCircle2 size={12} /> Ativo
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-red-500 text-xs font-bold uppercase">
-                        <Ban size={14} /> Inativo
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-500/10 text-red-500 text-[10px] font-bold uppercase border border-red-500/20">
+                        <Ban size={12} /> Inativo
                       </span>
                     )}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="text-text-muted hover:text-amber-500 transition-colors text-xs font-bold uppercase">
+                    <button className="text-text-muted hover:text-amber-500 transition-colors text-xs font-bold uppercase tracking-tighter">
                       Gerenciar
                     </button>
                   </td>
