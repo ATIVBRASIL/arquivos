@@ -21,9 +21,8 @@ export const SupportModal: React.FC<SupportModalProps> = ({ user, onClose }) => 
     setLoading(true);
 
     try {
-      // Ajustado de full_name para user.name para sincronizar com App.tsx
       const { error } = await supabase.from('messages').insert([{
-        full_name: user.name, 
+        full_name: user.name, // Sincronizado com a propriedade do App.tsx
         email: user.email,
         subject: formData.subject,
         content: formData.content
@@ -34,8 +33,8 @@ export const SupportModal: React.FC<SupportModalProps> = ({ user, onClose }) => 
       alert("MENSAGEM ENVIADA: O Comando recebeu seu reporte.");
       onClose();
     } catch (error: any) {
-      console.error("Erro técnico detalhado:", error);
-      alert("FALHA TÁTICA: Verifique se as políticas de segurança (RLS) foram aplicadas no Supabase.");
+      console.error("Erro técnico:", error);
+      alert("FALHA TÁTICA: Erro de comunicação com o banco. Verifique o console.");
     } finally {
       setLoading(false);
     }
@@ -92,7 +91,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({ user, onClose }) => 
               fullWidth 
               icon={<Send size={18} />}
             >
-              {loading ? 'ENVIANDO...' : 'ENVIAR AO COMANDO'}
+              {loading ? 'PROCESSANDO...' : 'ENVIAR AO COMANDO'}
             </Button>
           </footer>
         </form>
