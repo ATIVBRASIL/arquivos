@@ -31,9 +31,12 @@ export const Overview: React.FC = () => {
         .select('*', { count: 'exact', head: true });
 
       // 3. Contagem de Mensagens na Inbox Tática
-      const { count: msgCount } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true });
+      // Dentro da função fetchStats no Overview.tsx, substitua a parte das mensagens por:
+
+const { count: msgCount } = await supabase
+  .from('messages')
+  .select('*', { count: 'exact', head: true })
+  .eq('is_read', false); // REGRA TÁTICA: Conta apenas as não lidas
 
       setStats({
         totalEbooks: ebookCount || 0,
