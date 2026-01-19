@@ -2,22 +2,23 @@ import React, { useEffect, useState } from 'react';
 import { Navbar } from './components/Navbar';
 import { BookCard } from './components/BookCard';
 import { Reader } from './components/Reader';
+import { AdminDashboard } from './components/AdminDashboard';
 import { Button } from './components/Button';
 import { CATEGORIES } from './constants';
-import { Book, User, ViewState } from './types';
+import { Book, User, ViewState, UserRole } from './types';
 import { Shield } from 'lucide-react';
-import { supabase } from './src/lib/supabase';
+import { supabase } from './supabase';
 
+// Tipo local para bater com as colunas do banco de dados Profiles
 type Profile = {
   id: string;
   email: string;
-  role: 'admin' | 'user';
+  role: UserRole;
   is_active: boolean;
   expires_at: string | null;
 };
 
 // === COMPONENTE DE LOGIN ISOLADO ===
-// O estado da digitação fica aqui dentro para não "sacudir" o App inteiro
 const LoginView: React.FC<{ 
   onLoginAction: (e: string, p: string) => Promise<void>;
   authLoading: boolean;
@@ -80,6 +81,7 @@ const LoginView: React.FC<{
   );
 };
 
+// === VISTA DA HOME (CATÁLOGO) ===
 const HomeView: React.FC<{ onOpenBook: (book: Book) => void }> = ({ onOpenBook }) => (
   <div className="min-h-screen pt-20 pb-20">
     <div className="space-y-12 px-4">
@@ -97,6 +99,7 @@ const HomeView: React.FC<{ onOpenBook: (book: Book) => void }> = ({ onOpenBook }
   </div>
 );
 
+// === COMPONENTE PRINCIPAL (APP) ===
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [view, setView] = useState<ViewState>('home');
@@ -117,6 +120,7 @@ const App: React.FC = () => {
       return;
     }
 
+    // Verifica expiração [cite: 55, 65, 127]
     const expired = data.expires_at ? new Date(data.expires_at).getTime() < Date.now() : false;
 
     if (!data.is_active || expired) {
@@ -131,6 +135,7 @@ const App: React.FC = () => {
       email: data.email,
       subscriptionStatus: 'active',
       role: data.role,
+      expiresAt: data.expires_at
     } as User);
 
     setView('home');
@@ -178,6 +183,7 @@ const App: React.FC = () => {
     setView('home');
   };
 
+  // Se não estiver logado, exibe apenas a tela de login
   if (!user) {
     return (
       <div className="bg-black-900 min-h-screen text-text-primary">
@@ -190,18 +196,22 @@ const App: React.FC = () => {
     );
   }
 
+  // Lógica de renderização baseada no estado ViewState
   return (
     <div className="bg-black-900 min-h-screen text-text-primary">
-      <Navbar
-        currentView={view}
-        isLoggedIn={true}
-        onNavigate={(v) => {
-          setView(v);
-          if (v !== 'reader') setCurrentBook(null);
-        }}
-        onLogout={handleLogout}
-        isAdmin={user?.role === 'admin'}
-      />
+      {/* Navbar só aparece fora da tela Admin para manter o layout limpo */}
+      {view !== 'admin' && (
+        <Navbar
+          currentView={view}
+          isLoggedIn={true}
+          onNavigate={(v) => {
+            setView(v);
+            if (v !== 'reader') setCurrentBook(null);
+          }}
+          onLogout={handleLogout}
+          isAdmin={user.role !== 'user'} // Admins Master, Op e Content podem ver o link admin
+        />
+      )}
 
       {view === 'home' && <HomeView onOpenBook={(book) => {
         setCurrentBook(book);
@@ -211,6 +221,13 @@ const App: React.FC = () => {
 
       {view === 'reader' && currentBook && (
         <Reader book={currentBook} onClose={() => setView('home')} />
+      )}
+
+      {view === 'admin' && (
+        <AdminDashboard 
+          user={user} 
+          onClose={() => setView('home')} 
+        />
       )}
     </div>
   );
