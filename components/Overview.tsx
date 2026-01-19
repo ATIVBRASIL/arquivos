@@ -5,81 +5,79 @@ import { BookOpen, Users, MessageSquare, TrendingUp } from 'lucide-react';
 interface Stats {
   totalEbooks: number;
   activeUsers: number;
-  totalMessages: number;
+  unreadMessages: number; // Alterado para refletir apenas as não lidas
 }
 
 export const Overview: React.FC = () => {
   const [stats, setStats] = useState<Stats>({
     totalEbooks: 0,
     activeUsers: 0,
-    totalMessages: 0
+    unreadMessages: 0
   });
   const [loading, setLoading] = useState(true);
 
   const fetchStats = async () => {
     setLoading(true);
     try {
-      // 1. Contagem de Ebooks Publicados
+      // 1. Manuais ativos
       const { count: ebookCount } = await supabase
         .from('ebooks')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'published');
 
-      // 2. Contagem de Operadores (Perfis)
+      // 2. Operadores autorizados
       const { count: userCount } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true });
 
-      // 3. Contagem de Mensagens na Inbox Tática
-      // Dentro da função fetchStats no Overview.tsx, substitua a parte das mensagens por:
-
-const { count: msgCount } = await supabase
-  .from('messages')
-  .select('*', { count: 'exact', head: true })
-  .eq('is_read', false); // REGRA TÁTICA: Conta apenas as não lidas
+      // 3. FILTRO TÁTICO: Conta apenas mensagens onde is_read é FALSE
+      const { count: msgCount } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_read', false); 
 
       setStats({
         totalEbooks: ebookCount || 0,
         activeUsers: userCount || 0,
-        totalMessages: msgCount || 0
+        unreadMessages: msgCount || 0
       });
     } catch (error) {
-      console.error("Erro ao sincronizar métricas:", error);
+      console.error("Erro na telemetria:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
+  useEffect(() => { fetchStats(); }, []);
 
   const cards = [
     { 
-      label: 'Total de Ebooks', 
+      label: 'Ebooks Ativos', 
       value: loading ? '--' : stats.totalEbooks, 
       icon: <BookOpen className="text-amber-500" size={24} />,
-      desc: 'Manuais ativos no acervo' 
+      desc: 'Acervo publicado' 
     },
     { 
-      label: 'Usuários Ativos', 
+      label: 'Operadores', 
       value: loading ? '--' : stats.activeUsers, 
       icon: <Users className="text-amber-500" size={24} />,
-      desc: 'Operadores autorizados' 
+      desc: 'Acessos autorizados' 
     },
     { 
       label: 'Novas Mensagens', 
-      value: loading ? '--' : stats.totalMessages, 
+      value: loading ? '--' : stats.unreadMessages, 
       icon: <MessageSquare className="text-amber-500" size={24} />,
-      desc: 'Reportes e solicitações' 
+      desc: 'Aguardando processamento' 
     },
   ];
 
   return (
     <div className="space-y-8 animate-fade-in-up">
-      <div>
-        <h2 className="text-2xl font-display font-bold text-text-primary uppercase tracking-tight">Visão Geral</h2>
-        <p className="text-[10px] text-text-muted uppercase tracking-[0.2em] font-bold">Inteligência de Dados em Tempo Real</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-display font-bold text-text-primary uppercase tracking-tight">Visão Geral</h2>
+          <p className="text-[10px] text-text-muted uppercase tracking-[0.2em] font-bold">Inteligência de Dados em Tempo Real</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -88,9 +86,6 @@ const { count: msgCount } = await supabase
             <div className="flex items-start justify-between mb-4">
               <div className="p-3 bg-black/40 rounded-xl border border-graphite-600 group-hover:border-amber-500/20 transition-all">
                 {card.icon}
-              </div>
-              <div className="bg-green-500/10 text-green-500 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1">
-                <TrendingUp size={10} /> +100%
               </div>
             </div>
             <div className="space-y-1">
@@ -108,12 +103,10 @@ const { count: msgCount } = await supabase
         ))}
       </div>
 
-      <div className="bg-graphite-800 border border-graphite-700 rounded-2xl p-8 h-48 flex items-center justify-center text-center">
-        <div>
-          <TrendingUp size={32} className="text-graphite-600 mx-auto mb-3" />
-          <p className="text-[10px] text-text-muted uppercase tracking-widest font-bold">Monitoramento de Atividade</p>
-          <p className="text-[9px] text-graphite-500 mt-2 italic">O sistema está operando em regime de prontidão.</p>
-        </div>
+      <div className="bg-graphite-800 border border-graphite-700 rounded-2xl p-10 flex flex-col items-center justify-center text-center">
+        <TrendingUp size={32} className="text-amber-500/20 mb-3" />
+        <p className="text-[10px] text-text-muted uppercase tracking-[0.3em] font-black">Monitoramento de Atividade</p>
+        <p className="text-[9px] text-graphite-500 mt-2 italic">Radar operando em modo de filtragem por prioridade.</p>
       </div>
     </div>
   );
