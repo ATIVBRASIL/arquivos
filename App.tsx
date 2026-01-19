@@ -3,9 +3,10 @@ import { Navbar } from './components/Navbar';
 import { BookCard } from './components/BookCard';
 import { Reader } from './components/Reader';
 import { AdminDashboard } from './components/AdminDashboard';
+import { SupportModal } from './components/SupportModal'; // NOVO: Importando o Canal de Suporte
 import { Button } from './components/Button';
 import { Book, User, ViewState, UserRole } from './types';
-import { Shield, Loader2 } from 'lucide-react';
+import { Shield, Loader2, MessageSquare } from 'lucide-react'; // Adicionado ícone MessageSquare
 import { supabase } from './src/lib/supabase';
 
 type Profile = {
@@ -54,6 +55,7 @@ const App: React.FC = () => {
   const [currentBook, setCurrentBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isSupportOpen, setIsSupportOpen] = useState(false); // NOVO: Estado do Modal de Suporte
 
   // Busca Livros Reais do Banco de Dados
   const fetchRealContent = async () => {
@@ -101,7 +103,7 @@ const App: React.FC = () => {
   if (!user) return <LoginView onLoginAction={async (e, p) => { setAuthError(null); const { error } = await supabase.auth.signInWithPassword({ email: e, password: p }); if (error) setAuthError(error.message); }} authLoading={false} authError={authError} />;
 
   return (
-    <div className="bg-black min-h-screen text-text-primary">
+    <div className="bg-black min-h-screen text-text-primary relative">
       {view !== 'admin' && (
         <Navbar currentView={view} isLoggedIn={true} onLogout={() => supabase.auth.signOut()} onNavigate={(v) => { setView(v); if (v !== 'reader') setCurrentBook(null); }} isAdmin={user.role !== 'user'} />
       )}
@@ -109,16 +111,31 @@ const App: React.FC = () => {
       {view === 'home' && (
         <div className="pt-24 px-6 max-w-7xl mx-auto space-y-10">
           <h2 className="text-2xl font-display font-bold text-amber-500 uppercase">Acervo Tático Disponível</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 pb-20">
             {books.length === 0 ? (
               <p className="text-text-muted italic">Nenhum protocolo publicado no momento.</p>
             ) : books.map((book) => (
               <BookCard key={book.id} book={book} onClick={(b) => { setCurrentBook(b); setView('reader'); }} />
             ))}
           </div>
+
+          {/* BOTÃO FLUTUANTE DE SUPORTE - Apenas na Home e visível para o operador */}
+          <button 
+            onClick={() => setIsSupportOpen(true)}
+            className="fixed bottom-6 right-6 z-[100] bg-amber-500 hover:bg-amber-600 text-black p-4 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all hover:scale-110 active:scale-95 group"
+            title="Suporte Tático"
+          >
+            <MessageSquare size={24} />
+            <span className="absolute right-16 top-1/2 -translate-y-1/2 bg-graphite-800 text-amber-500 text-[10px] font-black uppercase px-3 py-1 rounded border border-amber-500/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+              Falar com o Comando
+            </span>
+          </button>
         </div>
       )}
 
+      {/* RENDERIZAÇÃO DOS MODAIS E TELAS ADICIONAIS */}
+      {isSupportOpen && <SupportModal user={user} onClose={() => setIsSupportOpen(false)} />}
+      
       {view === 'reader' && currentBook && <Reader book={currentBook} onClose={() => setView('home')} />}
       {view === 'admin' && <AdminDashboard user={user} onClose={() => setView('home')} />}
     </div>
