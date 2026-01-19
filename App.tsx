@@ -4,12 +4,10 @@ import { BookCard } from './components/BookCard';
 import { Reader } from './components/Reader';
 import { AdminDashboard } from './components/AdminDashboard';
 import { Button } from './components/Button';
-import { CATEGORIES } from './constants';
 import { Book, User, ViewState, UserRole } from './types';
-import { Shield } from 'lucide-react';
+import { Shield, Loader2 } from 'lucide-react';
 import { supabase } from './src/lib/supabase';
 
-// Tipo local para bater com as colunas do banco de dados Profiles
 type Profile = {
   id: string;
   email: string;
@@ -18,7 +16,7 @@ type Profile = {
   expires_at: string | null;
 };
 
-// === COMPONENTE DE LOGIN ISOLADO ===
+// === COMPONENTE DE LOGIN ===
 const LoginView: React.FC<{ 
   onLoginAction: (e: string, p: string) => Promise<void>;
   authLoading: boolean;
@@ -27,208 +25,102 @@ const LoginView: React.FC<{
   const [localEmail, setLocalEmail] = useState('');
   const [localPassword, setLocalPassword] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onLoginAction(localEmail, localPassword);
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-graphite-800 via-black-900 to-black-900 -z-10" />
-
-      <div className="w-full max-w-md bg-graphite-800/50 backdrop-blur-md border border-graphite-700 p-8 rounded-2xl shadow-2xl animate-fade-in-up">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-black">
+      <div className="w-full max-w-md bg-graphite-800/50 backdrop-blur-md border border-graphite-700 p-8 rounded-2xl shadow-2xl">
         <div className="flex flex-col items-center mb-6">
-          <div className="w-14 h-14 bg-gradient-to-br from-graphite-700 to-black-900 rounded-lg border border-graphite-600 flex items-center justify-center mb-3 shadow-glow">
-            <Shield className="text-amber-500 w-7 h-7" />
-          </div>
-          <h1 className="text-2xl font-bold text-text-primary">ARQUIVOS ATIV</h1>
-          <p className="text-xs text-text-secondary">Acesso restrito</p>
+          <Shield className="text-amber-500 w-12 h-12 mb-2" />
+          <h1 className="text-2xl font-bold text-text-primary uppercase tracking-tighter">Arquivos ATIV</h1>
+          <p className="text-xs text-text-muted italic">Operação de Inteligência Digital</p>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="email"
-            required
-            value={localEmail}
-            onChange={(e) => setLocalEmail(e.target.value)}
-            className="w-full bg-black-900 border border-graphite-600 rounded px-4 py-3 text-text-primary"
-            placeholder="email@ativbrasil.com.br"
-            autoComplete="email"
-          />
-
-          <input
-            type="password"
-            required
-            value={localPassword}
-            onChange={(e) => setLocalPassword(e.target.value)}
-            className="w-full bg-black-900 border border-graphite-600 rounded px-4 py-3 text-text-primary"
-            placeholder="••••••••"
-            autoComplete="current-password"
-          />
-
-          {authError && (
-            <div className="text-red-400 text-xs text-center">
-              {authError}
-            </div>
-          )}
-
-          <Button type="submit" fullWidth disabled={authLoading}>
-            {authLoading ? 'AUTENTICANDO…' : 'ACESSAR'}
-          </Button>
+        <form onSubmit={(e) => { e.preventDefault(); onLoginAction(localEmail, localPassword); }} className="space-y-4">
+          <input type="email" required value={localEmail} onChange={(e) => setLocalEmail(e.target.value)}
+            className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-text-primary outline-none focus:border-amber-500" placeholder="E-mail funcional" />
+          <input type="password" required value={localPassword} onChange={(e) => setLocalPassword(e.target.value)}
+            className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-text-primary outline-none focus:border-amber-500" placeholder="Senha de acesso" />
+          {authError && <div className="text-red-500 text-[10px] text-center uppercase font-bold">{authError}</div>}
+          <Button type="submit" fullWidth disabled={authLoading}>{authLoading ? 'AUTENTICANDO...' : 'ACESSAR SISTEMA'}</Button>
         </form>
       </div>
     </div>
   );
 };
 
-// === VISTA DA HOME (CATÁLOGO) ===
-const HomeView: React.FC<{ onOpenBook: (book: Book) => void }> = ({ onOpenBook }) => (
-  <div className="min-h-screen pt-20 pb-20">
-    <div className="space-y-12 px-4">
-      {CATEGORIES.map((category) => (
-        <section key={category.id}>
-          <h2 className="text-xl font-bold mb-4">{category.title}</h2>
-          <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar">
-            {category.books.map((book) => (
-              <BookCard key={book.id} book={book} onClick={onOpenBook} />
-            ))}
-          </div>
-        </section>
-      ))}
-    </div>
-  </div>
-);
-
-// === COMPONENTE PRINCIPAL (APP) ===
+// === APP PRINCIPAL ===
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [view, setView] = useState<ViewState>('home');
+  const [books, setBooks] = useState<Book[]>([]);
   const [currentBook, setCurrentBook] = useState<Book | null>(null);
-  const [authLoading, setAuthLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  const loadProfile = async (authUser: any) => {
+  // Busca Livros Reais do Banco de Dados
+  const fetchRealContent = async () => {
     const { data, error } = await supabase
-      .from('profiles')
+      .from('ebooks')
       .select('*')
-      .eq('id', authUser.id)
-      .single<Profile>();
+      .eq('status', 'published')
+      .order('created_at', { ascending: false });
 
-    if (error || !data) {
-      setAuthError('Perfil não encontrado ou acesso negado.');
-      await supabase.auth.signOut();
-      return;
+    if (!error && data) {
+      setBooks(data.map((b: any) => ({
+        id: b.id,
+        title: b.title,
+        description: b.description,
+        category: b.category,
+        coverUrl: b.cover_url,
+        tags: b.tags || [],
+        content: b.content_html,
+        readTime: b.read_time,
+        level: b.level
+      })));
     }
+  };
 
-    // Verifica expiração [cite: 55, 65, 127]
-    const expired = data.expires_at ? new Date(data.expires_at).getTime() < Date.now() : false;
-
-    if (!data.is_active || expired) {
-      setAuthError('Acesso suspenso ou expirado.');
-      await supabase.auth.signOut();
-      return;
-    }
-
-    setUser({
-      id: data.id,
-      name: data.email.split('@')[0],
-      email: data.email,
-      subscriptionStatus: 'active',
-      role: data.role,
-      expiresAt: data.expires_at
-    } as User);
-
-    setView('home');
+  const loadProfile = async (authUser: any) => {
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', authUser.id).single<Profile>();
+    if (error || !data) { setAuthError('Perfil não autorizado.'); await supabase.auth.signOut(); return; }
+    
+    setUser({ id: data.id, name: data.email.split('@')[0], email: data.email, role: data.role } as User);
+    await fetchRealContent();
+    setLoading(false);
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.user) loadProfile(data.session.user);
-    });
-
+    supabase.auth.getSession().then(({ data }) => { if (data.session?.user) loadProfile(data.session.user); else setLoading(false); });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        loadProfile(session.user);
-      } else {
-        setUser(null);
-        setView('home');
-      }
+      if (session?.user) loadProfile(session.user);
+      else { setUser(null); setView('home'); setLoading(false); }
     });
-
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  const handleLogin = async (emailInput: string, passwordInput: string) => {
-    setAuthLoading(true);
-    setAuthError(null);
+  if (loading) return <div className="h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-amber-500" size={40} /></div>;
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: emailInput,
-      password: passwordInput,
-    });
+  if (!user) return <LoginView onLoginAction={async (e, p) => { setAuthError(null); const { error } = await supabase.auth.signInWithPassword({ email: e, password: p }); if (error) setAuthError(error.message); }} authLoading={false} authError={authError} />;
 
-    if (error || !data.user) {
-      setAuthError(error?.message ?? 'Falha no login.');
-      setAuthLoading(false);
-      return;
-    }
-
-    await loadProfile(data.user);
-    setAuthLoading(false);
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setView('home');
-  };
-
-  // Se não estiver logado, exibe apenas a tela de login
-  if (!user) {
-    return (
-      <div className="bg-black-900 min-h-screen text-text-primary">
-        <LoginView 
-          onLoginAction={handleLogin} 
-          authLoading={authLoading} 
-          authError={authError} 
-        />
-      </div>
-    );
-  }
-
-  // Lógica de renderização baseada no estado ViewState
   return (
-    <div className="bg-black-900 min-h-screen text-text-primary">
-      {/* Navbar só aparece fora da tela Admin para manter o layout limpo */}
+    <div className="bg-black min-h-screen text-text-primary">
       {view !== 'admin' && (
-        <Navbar
-          currentView={view}
-          isLoggedIn={true}
-          onNavigate={(v) => {
-            setView(v);
-            if (v !== 'reader') setCurrentBook(null);
-          }}
-          onLogout={handleLogout}
-          isAdmin={user.role !== 'user'} // Admins Master, Op e Content podem ver o link admin
-        />
+        <Navbar currentView={view} isLoggedIn={true} onLogout={() => supabase.auth.signOut()} onNavigate={(v) => { setView(v); if (v !== 'reader') setCurrentBook(null); }} isAdmin={user.role !== 'user'} />
       )}
 
-      {view === 'home' && <HomeView onOpenBook={(book) => {
-        setCurrentBook(book);
-        setView('reader');
-        window.scrollTo(0, 0);
-      }} />}
-
-      {view === 'reader' && currentBook && (
-        <Reader book={currentBook} onClose={() => setView('home')} />
+      {view === 'home' && (
+        <div className="pt-24 px-6 max-w-7xl mx-auto space-y-10">
+          <h2 className="text-2xl font-display font-bold text-amber-500 uppercase">Acervo Tático Disponível</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {books.length === 0 ? (
+              <p className="text-text-muted italic">Nenhum protocolo publicado no momento.</p>
+            ) : books.map((book) => (
+              <BookCard key={book.id} book={book} onClick={(b) => { setCurrentBook(b); setView('reader'); }} />
+            ))}
+          </div>
+        </div>
       )}
 
-      {view === 'admin' && (
-        <AdminDashboard 
-          user={user} 
-          onClose={() => setView('home')} 
-        />
-      )}
+      {view === 'reader' && currentBook && <Reader book={currentBook} onClose={() => setView('home')} />}
+      {view === 'admin' && <AdminDashboard user={user} onClose={() => setView('home')} />}
     </div>
   );
 };
