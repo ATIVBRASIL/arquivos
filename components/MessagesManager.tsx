@@ -21,7 +21,7 @@ export const MessagesManager: React.FC = () => {
     const { data, error } = await supabase
       .from('messages')
       .select('*')
-      .order('is_read', { ascending: true }) // Prioriza as não lidas no topo
+      .order('is_read', { ascending: true }) 
       .order('created_at', { ascending: false });
 
     if (!error && data) setMessages(data);
@@ -49,32 +49,32 @@ export const MessagesManager: React.FC = () => {
     <div className="space-y-6 animate-fade-in-up">
       <div>
         <h2 className="text-2xl font-display font-bold text-text-primary uppercase tracking-tight">Inbox Tática</h2>
-        <p className="text-[10px] text-text-muted uppercase tracking-[0.2em] font-bold">Gestão de Reportes e Status de Processamento</p>
+        <p className="text-[10px] text-text-muted uppercase tracking-[0.2em] font-bold">Gestão de Reportes Operacionais</p>
       </div>
 
       <div className="space-y-4">
         {loading ? (
           <div className="py-20 text-center text-text-muted italic">Sincronizando comunicações...</div>
         ) : messages.map((msg) => (
-          <div key={msg.id} className={`bg-graphite-800 border transition-all rounded-xl p-6 group ${msg.is_read ? 'border-graphite-700 opacity-60' : 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]'}`}>
+          <div key={msg.id} className={`bg-graphite-800 border transition-all rounded-xl p-6 group ${msg.is_read ? 'border-graphite-700 opacity-40' : 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.15)]'}`}>
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
               <div className="flex-1 space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${msg.is_read ? 'bg-graphite-700 text-graphite-400' : 'bg-amber-500/10 text-amber-500'}`}>
+                  <div className={`p-2 rounded-lg ${msg.is_read ? 'bg-graphite-700 text-graphite-500' : 'bg-amber-500 text-black'}`}>
                     <User size={16} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-text-primary uppercase flex items-center gap-2">
+                    <h4 className={`text-sm font-bold uppercase flex items-center gap-2 ${msg.is_read ? 'text-text-muted' : 'text-text-primary'}`}>
                       {msg.full_name} 
-                      {!msg.is_read && <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />}
+                      {!msg.is_read && <span className="bg-amber-500 text-black text-[8px] px-1 rounded animate-pulse">NOVO</span>}
                     </h4>
                     <p className="text-[10px] text-text-muted">{msg.email}</p>
                   </div>
                 </div>
                 
-                <div className={`p-4 rounded-lg border ${msg.is_read ? 'bg-black/10 border-graphite-700/50' : 'bg-black/40 border-amber-500/10'}`}>
+                <div className={`p-4 rounded-lg border ${msg.is_read ? 'bg-black/10 border-graphite-700/50' : 'bg-black/40 border-amber-500/20'}`}>
                   <h5 className={`text-xs font-black uppercase mb-1 ${msg.is_read ? 'text-graphite-500' : 'text-amber-500'}`}>{msg.subject}</h5>
-                  <p className="text-sm text-text-secondary leading-relaxed">{msg.content}</p>
+                  <p className={`text-sm leading-relaxed ${msg.is_read ? 'text-text-muted' : 'text-text-secondary'}`}>{msg.content}</p>
                 </div>
 
                 <div className="flex items-center gap-4 text-[9px] text-text-muted uppercase font-bold">
@@ -85,10 +85,11 @@ export const MessagesManager: React.FC = () => {
               <div className="flex md:flex-col gap-2">
                 <button 
                   onClick={() => toggleReadStatus(msg.id, msg.is_read)}
-                  className={`p-3 rounded-xl transition-all ${msg.is_read ? 'text-graphite-500 hover:text-amber-500' : 'text-amber-500 hover:bg-amber-500/10'}`}
-                  title={msg.is_read ? "Marcar como não lida" : "Marcar como processada"}
+                  className={`p-3 rounded-xl transition-all ${msg.is_read ? 'bg-amber-500 text-black' : 'text-amber-500 hover:bg-amber-500/10 border border-amber-500/30'}`}
+                  title={msg.is_read ? "Marcar como Pendente" : "Marcar como Processado"}
                 >
-                  {msg.is_read ? <Circle size={20} /> : <CheckCircle2 size={20} />}
+                  {/* CORREÇÃO AQUI: is_read true mostra o visto, false mostra círculo vazio */}
+                  {msg.is_read ? <CheckCircle2 size={20} /> : <Circle size={20} />}
                 </button>
                 <button 
                   onClick={() => deleteMessage(msg.id)}
