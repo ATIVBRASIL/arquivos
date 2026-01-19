@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Users, BookOpen, Mail, LayoutDashboard, ArrowLeft } from 'lucide-react';
 import { User } from '../types';
 import { UsersManager } from './UsersManager';
+import { ContentManager } from './ContentManager';
 
 interface AdminDashboardProps {
   user: User;
@@ -105,22 +106,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onClose })
           </div>
         )}
 
-        {/* Integração com o Gerenciador de Usuários (Módulo 3.2 do RPD) */}
+        {/* Módulo de Usuários (Módulo 3.2 do RPD) */}
         {activeTab === 'users' && <UsersManager />}
 
-        {activeTab === 'content' && (
-          <div className="flex flex-col items-center justify-center h-full py-20 text-text-muted animate-fade-in">
-            <BookOpen size={48} className="mb-4 opacity-20" />
-            <p className="text-lg">Módulo de Conteúdo</p>
-            <p className="text-sm">Implementação do catálogo dinâmico em progresso.</p>
-          </div>
-        )}
+        {/* Módulo de Conteúdo (Módulo 3.3 do RPD) */}
+        {activeTab === 'content' && <ContentManager />}
 
         {activeTab === 'inbox' && (
           <div className="flex flex-col items-center justify-center h-full py-20 text-text-muted animate-fade-in">
             <Mail size={48} className="mb-4 opacity-20" />
-            <p className="text-lg">Módulo de Comunicação</p>
-            <p className="text-sm">Configuração da Inbox tática em progresso.</p>
+            <p className="text-lg font-display uppercase tracking-widest">Módulo de Comunicação</p>
+            <p className="text-xs italic">Configuração da Inbox tática em progresso.</p>
           </div>
         )}
       </main>
