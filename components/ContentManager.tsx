@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../src/lib/supabase';
 import { Book, EbookStatus, EbookLevel } from '../types';
-import { Plus, Search, BookOpen, Edit, Archive, CheckCircle, Clock } from 'lucide-react';
+import { Plus, Search, BookOpen, Edit, Clock } from 'lucide-react';
 import { Button } from './Button';
 import { EbookForm } from './EbookForm';
 
@@ -10,6 +10,7 @@ export const ContentManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const [editingBook, setEditingBook] = useState<Book | null>(null); // Estado para edição
 
   const fetchBooks = async () => {
     setLoading(true);
@@ -39,17 +40,34 @@ export const ContentManager: React.FC = () => {
 
   useEffect(() => { fetchBooks(); }, []);
 
-  const handleCreateBook = async (bookData: any) => {
+  // Lógica Unificada de Salvamento (Criação e Edição)
+  const handleSaveBook = async (bookData: any) => {
     try {
-      const { error } = await supabase.from('ebooks').insert([bookData]);
-      if (error) throw error;
+      if (editingBook) {
+        // OPERAÇÃO DE ATUALIZAÇÃO
+        const { error } = await supabase
+          .from('ebooks')
+          .update({
+            ...bookData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingBook.id);
+        
+        if (error) throw error;
+        alert("PROTOCOLO ATUALIZADO NO ACERVO!");
+      } else {
+        // OPERAÇÃO DE INSERÇÃO
+        const { error } = await supabase.from('ebooks').insert([bookData]);
+        if (error) throw error;
+        alert("MISSÃO CUMPRIDA: Novo manual inserido!");
+      }
       
       setIsAdding(false);
+      setEditingBook(null);
       fetchBooks();
-      alert("MISSÃO CUMPRIDA: O novo manual foi inserido no acervo!");
     } catch (error: any) {
       console.error("Erro no Supabase:", error);
-      alert("ERRO DE CONEXÃO: O banco recusou os dados. Motivo: " + error.message);
+      alert("FALHA NA OPERAÇÃO: " + error.message);
     }
   };
 
@@ -65,8 +83,13 @@ export const ContentManager: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-      {isAdding && (
-        <EbookForm onClose={() => setIsAdding(false)} onSave={handleCreateBook} />
+      {/* O formulário abre se estiver adicionando OU editando */}
+      {(isAdding || editingBook) && (
+        <EbookForm 
+          initialData={editingBook} 
+          onClose={() => { setIsAdding(false); setEditingBook(null); }} 
+          onSave={handleSaveBook} 
+        />
       )}
 
       <div className="flex items-center justify-between">
@@ -113,7 +136,11 @@ export const ContentManager: React.FC = () => {
             </div>
 
             <div className="bg-black-900/50 p-3 flex border-t border-graphite-700">
-              <button className="flex-1 flex items-center justify-center gap-2 text-[10px] font-bold uppercase text-text-muted hover:text-amber-500 transition-colors border-r border-graphite-700">
+              {/* BOTÃO EDITAR CONECTADO AO ESTADO */}
+              <button 
+                onClick={() => setEditingBook(book)}
+                className="flex-1 flex items-center justify-center gap-2 text-[10px] font-bold uppercase text-text-muted hover:text-amber-500 transition-colors border-r border-graphite-700"
+              >
                 <Edit size={14} /> Editar
               </button>
               <button 

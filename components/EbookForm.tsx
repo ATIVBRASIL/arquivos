@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Save, Settings, FileCode, Info } from 'lucide-react';
 import { Button } from './Button';
 import { EbookLevel, EbookStatus } from '../types';
@@ -6,21 +6,24 @@ import { EbookLevel, EbookStatus } from '../types';
 interface EbookFormProps {
   onClose: () => void;
   onSave: (bookData: any) => Promise<void>;
+  initialData?: any; // Suporte para edição
 }
 
-export const EbookForm: React.FC<EbookFormProps> = ({ onClose, onSave }) => {
+export const EbookForm: React.FC<EbookFormProps> = ({ onClose, onSave, initialData }) => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'settings' | 'content'>('settings');
+  
+  // Estado inicial dinâmico (Carrega dados se for edição ou limpo se for novo)
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: 'Proteção Executiva',
-    cover_url: '',
-    tags: '',
-    read_time: '',
-    level: 'Básico' as EbookLevel,
-    status: 'published' as EbookStatus,
-    content_html: ''
+    title: initialData?.title || '',
+    description: initialData?.description || '',
+    category: initialData?.category || 'Mindset do Guerreiro',
+    cover_url: initialData?.coverUrl || '',
+    tags: initialData?.tags?.join(', ') || '',
+    read_time: initialData?.readTime || '',
+    level: (initialData?.level as EbookLevel) || 'Básico',
+    status: (initialData?.status as EbookStatus) || 'published',
+    content_html: initialData?.content || ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,21 +43,18 @@ export const EbookForm: React.FC<EbookFormProps> = ({ onClose, onSave }) => {
   };
 
   return (
-    // Overlay com padding superior para garantir que o topo nunca encoste na borda do navegador
     <div className="fixed inset-0 z-[999] bg-black/90 flex items-start justify-center pt-8 pb-8 px-4 overflow-y-auto">
-      
-      {/* Container com altura máxima controlada (max-h-[85vh]) para notebooks */}
       <div className="bg-graphite-800 border-2 border-amber-500 w-full max-w-5xl flex flex-col rounded-2xl shadow-[0_0_80px_rgba(0,0,0,1)] relative">
         
-        {/* Cabeçalho Fixo com Abas Visíveis */}
         <header className="p-5 border-b border-graphite-700 bg-black/30 rounded-t-2xl">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h3 className="text-lg font-display font-bold text-amber-500 uppercase">Editor de Protocolo</h3>
+              <h3 className="text-lg font-display font-bold text-amber-500 uppercase">
+                {initialData ? 'Editar Protocolo' : 'Novo Protocolo'}
+              </h3>
               <p className="text-[9px] text-text-muted uppercase tracking-widest font-bold">Ambiente de Operação Desktop</p>
             </div>
             
-            {/* Sistema de Abas - Reforçado para visibilidade */}
             <div className="flex bg-black/40 p-1 rounded-xl border border-graphite-600">
               <button 
                 type="button"
@@ -79,16 +79,30 @@ export const EbookForm: React.FC<EbookFormProps> = ({ onClose, onSave }) => {
         </header>
 
         <form onSubmit={handleSubmit} className="flex flex-col">
-          {/* Área de rolagem interna do formulário */}
           <div className="p-8 max-h-[60vh] overflow-y-auto">
-            
             {activeTab === 'settings' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in">
                 <div className="space-y-6">
                   <div>
                     <label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">Título do Manual</label>
                     <input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})}
-                      className="w-full bg-graphite-900 border border-graphite-600 rounded-lg p-3 text-sm text-white focus:border-amber-500 outline-none" />
+                      className="w-full bg-graphite-900 border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">Categoria</label>
+                    <select 
+                      value={formData.category} 
+                      onChange={e => setFormData({...formData, category: e.target.value})} 
+                      className="w-full bg-graphite-900 border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500 cursor-pointer"
+                    >
+                      <option>Mindset do Guerreiro</option>
+                      <option>Filosofia Tática</option>
+                      <option>Leis / Normas</option>
+                      <option>Doutrina Operacional</option>
+                      <option>Psicologia do Confronto</option>
+                      <option>Liderança de Elite</option>
+                      <option>Sobrevivência & Resiliência</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">Link da Capa (.png/.jpg)</label>
@@ -140,11 +154,10 @@ export const EbookForm: React.FC<EbookFormProps> = ({ onClose, onSave }) => {
             )}
           </div>
 
-          {/* Rodapé fixo para botões sempre visíveis */}
           <footer className="p-6 border-t border-graphite-700 bg-black/30 flex justify-end gap-4 rounded-b-2xl">
             <button type="button" onClick={onClose} className="px-6 py-2 text-text-muted hover:text-white text-[10px] font-black uppercase">Cancelar</button>
             <Button type="submit" disabled={loading} className="px-10 py-3 shadow-glow">
-              {loading ? 'GRAVANDO...' : 'PUBLICAR MANUAL'}
+              {loading ? 'GRAVANDO...' : initialData ? 'ATUALIZAR MANUAL' : 'PUBLICAR MANUAL'}
             </Button>
           </footer>
         </form>
