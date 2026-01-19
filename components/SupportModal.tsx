@@ -21,8 +21,9 @@ export const SupportModal: React.FC<SupportModalProps> = ({ user, onClose }) => 
     setLoading(true);
 
     try {
+      // Ajustado de full_name para user.name para sincronizar com App.tsx
       const { error } = await supabase.from('messages').insert([{
-        full_name: user.full_name,
+        full_name: user.name, 
         email: user.email,
         subject: formData.subject,
         content: formData.content
@@ -33,7 +34,8 @@ export const SupportModal: React.FC<SupportModalProps> = ({ user, onClose }) => 
       alert("MENSAGEM ENVIADA: O Comando recebeu seu reporte.");
       onClose();
     } catch (error: any) {
-      alert("FALHA NO ENVIO: Verifique sua conexão.");
+      console.error("Erro técnico detalhado:", error);
+      alert("FALHA TÁTICA: Verifique se as políticas de segurança (RLS) foram aplicadas no Supabase.");
     } finally {
       setLoading(false);
     }
