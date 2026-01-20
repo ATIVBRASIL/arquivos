@@ -31,7 +31,8 @@ export interface Book {
   status: EbookStatus;
   createdAt: string;
   updatedAt: string;
-  quiz_data?: any; // CAMPO ADICIONADO PARA O SISTEMA DE CERTIFICAÇÃO (PRD v1.1)
+  quiz_data?: any; // SISTEMA DE CERTIFICAÇÃO (PRD v1.1)
+  technical_skills?: string; // NOVO: EMENTA TÉCNICA PARA O CERTIFICADO (PRD v1.2)
 }
 
 export interface Category {
@@ -57,7 +58,7 @@ export interface Message {
 
 export type ViewState = 'login' | 'home' | 'reader' | 'admin';
 
-// --- DEFINIÇÕES DE CERTIFICAÇÃO (PRD v1.1) ---
+// --- DEFINIÇÕES DE CERTIFICAÇÃO (PRD v1.1 e v1.2) ---
 
 export interface UserExam {
   id: string;
