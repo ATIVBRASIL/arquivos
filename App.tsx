@@ -8,6 +8,8 @@ import { Button } from './components/Button';
 import { Book, User, ViewState, UserRole } from './types';
 import { Shield, Loader2, MessageSquare } from 'lucide-react'; 
 import { supabase } from './src/lib/supabase';
+import { ValidateCertificate } from './components/ValidateCertificate';
+
 
 type Profile = {
   id: string;
@@ -102,6 +104,15 @@ const App: React.FC = () => {
   if (loading) return <div className="h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-amber-500" size={40} /></div>;
 
   if (!user) return <LoginView onLoginAction={async (e, p) => { setAuthError(null); const { error } = await supabase.auth.signInWithPassword({ email: e, password: p }); if (error) setAuthError(error.message); }} authLoading={false} authError={authError} />;
+
+    // === ROTA PÚBLICA: /validar?code=... ===
+  const isValidationRoute =
+    typeof window !== 'undefined' &&
+    window.location.pathname.replace(/\/+$/, '').endsWith('/validar');
+
+  if (!loading && isValidationRoute) {
+    return <ValidateCertificate />;
+  }
 
   return (
     <div className="bg-black min-h-screen text-text-primary relative">
