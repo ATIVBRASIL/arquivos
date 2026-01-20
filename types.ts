@@ -1,36 +1,37 @@
 // --- DEFINIÇÕES DE USUÁRIO E ACESSO (RBAC) ---
 
-export type UserRole = 'user' | 'admin_master' | 'admin_op' | 'admin_content'; [cite: 16, 21, 29, 40]
+export type UserRole = 'user' | 'admin_master' | 'admin_op' | 'admin_content';
 
 export interface User {
   id: string;
   name: string;
   email: string;
   subscriptionStatus: 'active' | 'expired' | 'none';
-  role: UserRole; [cite: 14, 21]
-  expiresAt?: string | null; [cite: 65]
-  lastLogin?: string; [cite: 66]
-  lastActivity?: string; [cite: 67]
+  role: UserRole;
+  expiresAt?: string | null;
+  lastLogin?: string;
+  lastActivity?: string;
 }
 
 // --- DEFINIÇÕES DE CONTEÚDO (EBOOKS) ---
 
-export type EbookStatus = 'draft' | 'published' | 'archived'; [cite: 87, 88, 89, 91]
-export type EbookLevel = 'Básico' | 'Intermediário' | 'Avançado'; [cite: 86]
+export type EbookStatus = 'draft' | 'published' | 'archived';
+export type EbookLevel = 'Básico' | 'Intermediário' | 'Avançado';
 
 export interface Book {
   id: string;
-  title: string; [cite: 81]
-  description: string; [cite: 82]
-  category: string; [cite: 83]
-  coverUrl: string; [cite: 79]
-  tags: string[]; [cite: 84]
+  title: string;
+  description: string;
+  category: string;
+  coverUrl: string;
+  tags: string[];
   content: string; // HTML content
-  readTime: string; [cite: 85]
-  level: EbookLevel; [cite: 86]
-  status: EbookStatus; [cite: 87]
+  readTime: string;
+  level: EbookLevel;
+  status: EbookStatus;
   createdAt: string;
   updatedAt: string;
+  quiz_data?: any; // CAMPO ADICIONADO PARA O SISTEMA DE CERTIFICAÇÃO (PRD v1.1)
 }
 
 export interface Category {
@@ -43,18 +44,19 @@ export interface Category {
 
 export interface Message {
   id: string;
-  title: string; [cite: 97]
-  body: string; [cite: 97]
+  title: string;
+  body: string;
   senderId: string;
-  receiverId?: string | null; // Se null, é para todos [cite: 99, 102]
-  isRead: boolean; [cite: 110, 117]
-  actionLink?: string; [cite: 97, 118]
-  createdAt: string; [cite: 130]
+  receiverId?: string | null; // Se null, é para todos
+  isRead: boolean;
+  actionLink?: string;
+  createdAt: string;
 }
 
 // --- ESTADOS DE VISUALIZAÇÃO DO APP ---
 
-export type ViewState = 'login' | 'home' | 'reader' | 'admin'; [cite: 7, 50]
+export type ViewState = 'login' | 'home' | 'reader' | 'admin';
+
 // --- DEFINIÇÕES DE CERTIFICAÇÃO (PRD v1.1) ---
 
 export interface UserExam {
