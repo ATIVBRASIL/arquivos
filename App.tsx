@@ -3,10 +3,10 @@ import { Navbar } from './components/Navbar';
 import { BookCard } from './components/BookCard';
 import { Reader } from './components/Reader';
 import { AdminDashboard } from './components/AdminDashboard';
-import { SupportModal } from './components/SupportModal'; // NOVO: Importando o Canal de Suporte
+import { SupportModal } from './components/SupportModal'; // Canal de Suporte
 import { Button } from './components/Button';
 import { Book, User, ViewState, UserRole } from './types';
-import { Shield, Loader2, MessageSquare } from 'lucide-react'; // Adicionado ícone MessageSquare
+import { Shield, Loader2, MessageSquare } from 'lucide-react'; 
 import { supabase } from './src/lib/supabase';
 
 type Profile = {
@@ -55,7 +55,7 @@ const App: React.FC = () => {
   const [currentBook, setCurrentBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isSupportOpen, setIsSupportOpen] = useState(false); // NOVO: Estado do Modal de Suporte
+  const [isSupportOpen, setIsSupportOpen] = useState(false); 
 
   // Busca Livros Reais do Banco de Dados
   const fetchRealContent = async () => {
@@ -75,7 +75,8 @@ const App: React.FC = () => {
         tags: b.tags || [],
         content: b.content_html,
         readTime: b.read_time,
-        level: b.level
+        level: b.level,
+        quiz_data: b.quiz_data // SINCRONIZAÇÃO: Carrega o quiz para o Reader
       })));
     }
   };
@@ -119,7 +120,6 @@ const App: React.FC = () => {
             ))}
           </div>
 
-          {/* BOTÃO FLUTUANTE DE SUPORTE - Apenas na Home e visível para o operador */}
           <button 
             onClick={() => setIsSupportOpen(true)}
             className="fixed bottom-6 right-6 z-[100] bg-amber-500 hover:bg-amber-600 text-black p-4 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all hover:scale-110 active:scale-95 group"
@@ -133,10 +133,17 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* RENDERIZAÇÃO DOS MODAIS E TELAS ADICIONAIS */}
       {isSupportOpen && <SupportModal user={user} onClose={() => setIsSupportOpen(false)} />}
       
-      {view === 'reader' && currentBook && <Reader book={currentBook} onClose={() => setView('home')} />}
+      {/* PASSO 9: Reader agora recebe o objeto user completo */}
+      {view === 'reader' && currentBook && (
+        <Reader 
+          book={currentBook} 
+          user={user} 
+          onClose={() => setView('home')} 
+        />
+      )}
+      
       {view === 'admin' && <AdminDashboard user={user} onClose={() => setView('home')} />}
     </div>
   );
