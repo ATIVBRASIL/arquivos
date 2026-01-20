@@ -43,8 +43,8 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({ book, user, onClos
     try {
       const certCode = passed ? `ATIV-${Math.random().toString(36).substring(2, 10).toUpperCase()}` : null;
 
-      // Gravação no Banco de Dados
-      const { error } = await supabase.from('user_exams').insert([{
+      // 1. Gravação do Exame no Banco
+      const { error: examError } = await supabase.from('user_exams').insert([{
         user_id: user.id,
         ebook_id: book.id,
         score: score,
@@ -52,15 +52,25 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({ book, user, onClos
         cert_code: certCode
       }]);
 
-      if (error) throw error;
+      if (examError) throw examError;
 
+      // 2. Reporte Automático ao Comando (Fase Delta)
       if (passed && certCode) {
+        await supabase.from('messages').insert([{
+          full_name: "SISTEMA DE INTELIGÊNCIA",
+          email: user.email,
+          subject: "ALERTA: NOVA CERTIFICAÇÃO EMITIDA",
+          content: `O Operador ${user.name} conquistou o Certificado de Elite no manual "${book.title}". Nota: ${score}%. Código de Autenticidade: ${certCode}.`
+        }]);
+
+        // 3. Download do PDF para o Operador
         generateCertificate(user, book, certCode, new Date().toISOString());
       }
 
       setIsFinished(true);
     } catch (err) {
-      alert("ERRO DE SINCRONIZAÇÃO: O resultado não foi salvo. Verifique sua conexão.");
+      console.error(err);
+      alert("FALHA NA COMUNICAÇÃO: O reporte não pôde ser enviado ao Comando.");
     } finally {
       setLoading(false);
     }
@@ -77,16 +87,16 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({ book, user, onClos
             <div className="w-20 h-20 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(34,197,94,0.3)]">
               <Award size={40} />
             </div>
-            <h2 className="text-2xl font-display font-bold text-white uppercase tracking-tighter">Missão Cumprida!</h2>
-            <p className="text-text-secondary text-sm">Você atingiu {score}% de acerto. Seu certificado foi gerado e baixado com sucesso.</p>
+            <h2 className="text-2xl font-display font-bold text-white uppercase tracking-tighter">Certificação Aprovada</h2>
+            <p className="text-text-secondary text-sm">O Comando foi notificado de sua conquista. Seu certificado foi baixado.</p>
           </>
         ) : (
           <>
             <div className="w-20 h-20 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center">
               <XCircle size={40} />
             </div>
-            <h2 className="text-2xl font-display font-bold text-white uppercase tracking-tighter">Acesso Negado</h2>
-            <p className="text-text-secondary text-sm">Sua pontuação ({score}%) foi insuficiente para a certificação de elite. Estude o manual novamente.</p>
+            <h2 className="text-2xl font-display font-bold text-white uppercase tracking-tighter">Pontuação Insuficiente</h2>
+            <p className="text-text-secondary text-sm">A nota {score}% está abaixo do padrão de elite (90%). Revise o protocolo e tente novamente.</p>
           </>
         )}
         <Button onClick={onClose} variant="secondary">Voltar ao Acervo</Button>
@@ -128,7 +138,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({ book, user, onClos
 
       {loading && (
         <div className="flex items-center justify-center gap-2 text-amber-500 text-[10px] font-bold uppercase italic animate-pulse">
-          <Loader2 size={14} className="animate-spin" /> Processando Avaliação...
+          <Loader2 size={14} className="animate-spin" /> Sincronizando com o Comando...
         </div>
       )}
     </div>
