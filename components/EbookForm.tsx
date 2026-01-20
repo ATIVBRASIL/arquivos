@@ -24,6 +24,8 @@ export const EbookForm: React.FC<EbookFormProps> = ({ onClose, onSave, initialDa
     level: (initialData?.level as EbookLevel) || 'Básico',
     status: (initialData?.status as EbookStatus) || 'published',
     content_html: initialData?.content || '',
+    // NOVO: Campo de competências técnicas para o certificado
+    technical_skills: initialData?.technical_skills || '',
     // Transforma o objeto JSON do banco em texto para o campo de edição
     quiz_data: initialData?.quiz_data ? JSON.stringify(initialData.quiz_data, null, 2) : '[]'
   });
@@ -149,8 +151,22 @@ export const EbookForm: React.FC<EbookFormProps> = ({ onClose, onSave, initialDa
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">Resumo para o Card</label>
-                    <textarea rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}
+                    <textarea rows={2} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}
                       className="w-full bg-graphite-900 border border-graphite-600 rounded-lg p-3 text-sm text-white focus:border-amber-500 outline-none resize-none" />
+                  </div>
+                  
+                  {/* NOVO CAMPO: Ementa Técnica */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-amber-500 uppercase mb-1">
+                      Ementa Técnica / Competências (Certificado)
+                    </label>
+                    <textarea 
+                      rows={2} 
+                      value={formData.technical_skills} 
+                      onChange={e => setFormData({...formData, technical_skills: e.target.value})}
+                      placeholder="Ex: Leitura de Microexpressões • Protocolos FBI..."
+                      className="w-full bg-graphite-900 border border-graphite-600 rounded-lg p-3 text-sm text-white focus:border-amber-500 outline-none resize-none" 
+                    />
                   </div>
                 </div>
               </div>
