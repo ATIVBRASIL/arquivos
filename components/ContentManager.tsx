@@ -31,6 +31,7 @@ export const ContentManager: React.FC = () => {
         readTime: b.read_time,
         level: b.level as EbookLevel,
         status: b.status as EbookStatus,
+        quiz_data: b.quiz_data, // SINCRONIZAÇÃO TÁTICA: Carrega o Quiz do banco
         createdAt: b.created_at,
         updatedAt: b.updated_at
       })));
