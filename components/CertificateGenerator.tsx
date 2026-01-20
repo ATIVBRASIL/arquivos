@@ -1,6 +1,9 @@
 import { jsPDF } from 'jspdf';
 import { User, Book } from '../types';
 
+// ASSINATURA OFICIAL - TENENTE ALEX ANDREOLI DANTAS
+const SIGNATURE_BASE64 = "data:image/png;base64,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";
+
 export const generateCertificate = (user: User, book: Book, certCode: string, date: string) => {
   const doc = new jsPDF({
     orientation: 'landscape',
@@ -8,93 +11,96 @@ export const generateCertificate = (user: User, book: Book, certCode: string, da
     format: 'a4'
   });
 
-  // 1. FUNDO E MOLDURA (ESTILO ACADEMIA DE POLÍCIA)
+  // 1. FUNDO E MARCA D'ÁGUA
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, 297, 210, 'F');
   
-  // Moldura em L e Bordas (Inspirado no modelo UPF)
+  doc.setTextColor(242, 242, 242); // Cinza ultra-claro para marca d'água
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(140);
+  doc.text('ATIV', 148.5, 120, { align: 'center', angle: 45 });
+
+  // Detalhes de Canto (Estilo Acadêmico Militar)
   doc.setDrawColor(245, 158, 11); // Âmbar ATIV
   doc.setLineWidth(1.5);
-  doc.line(10, 10, 50, 10); // Canto superior esquerdo
-  doc.line(10, 10, 10, 50);
-  doc.line(247, 200, 287, 200); // Canto inferior direito
-  doc.line(287, 160, 287, 200);
+  doc.line(10, 10, 40, 10); doc.line(10, 10, 10, 40); // Canto Superior Esq
+  doc.line(257, 200, 287, 200); doc.line(287, 170, 287, 200); // Canto Inferior Dir
 
-  // 2. MARCA D'ÁGUA "ATIV" (CORREÇÃO DO ERRO DE OPACITY)
-  // Usamos um cinza extremamente claro (245) para simular a marca d'água sem travar o código
-  doc.setTextColor(245, 245, 245); 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(120);
-  doc.text('ATIV', 148.5, 115, { align: 'center', angle: 45 });
-
-  // 3. CABEÇALHO INSTITUCIONAL
+  // 2. CABEÇALHO INSTITUCIONAL
   doc.setTextColor(60, 60, 60);
   doc.setFontSize(14);
-  doc.setFont('helvetica', 'normal');
   doc.text('ATIV BRASIL', 148.5, 25, { align: 'center' });
-  doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
   doc.text('ACADEMIA DE TÁTICAS E INTELIGÊNCIA DE VIGILÂNCIA', 148.5, 33, { align: 'center' });
   
-  doc.setFontSize(32);
+  doc.setFontSize(34);
   doc.setTextColor(11, 13, 16);
   doc.text('CERTIFICADO DE APERFEIÇOAMENTO', 148.5, 55, { align: 'center' });
 
-  // 4. CORPO DO DOCUMENTO
+  // 3. CORPO DO CERTIFICADO
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(80, 80, 80);
-  doc.text('CERTIFICAMOS, PARA OS DEVIDOS FINS DE COMPROVAÇÃO DE COMPETÊNCIA TÉCNICA, QUE', 148.5, 75, { align: 'center' });
+  doc.setTextColor(100, 100, 100);
+  doc.text('CERTIFICAMOS, PARA OS DEVIDOS FINS DE COMPROVAÇÃO DE COMPETÊNCIA TÉCNICA, QUE', 148.5, 72, { align: 'center' });
   
-  // Nome do Operador (Destaque máximo)
-  doc.setFontSize(42);
+  // Nome do Operador (Destaque Máximo)
+  doc.setFontSize(44);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(11, 13, 16);
-  doc.text(user.name.toUpperCase(), 148.5, 95, { align: 'center' });
+  doc.text(user.name.toUpperCase(), 148.5, 92, { align: 'center' });
 
   doc.setFontSize(14);
   doc.setFont('helvetica', 'normal');
-  doc.text('CONCLUIU COM ÊXITO O CURSO DE APERFEIÇOAMENTO TÁTICO EM:', 148.5, 110, { align: 'center' });
+  doc.text('CONCLUIU COM ÊXITO O CURSO DE APERFEIÇOAMENTO TÁTICO EM:', 148.5, 108, { align: 'center' });
   
-  // Título do Manual (Em Âmbar e Negrito)
+  // Título do Manual
   doc.setFontSize(26);
-  doc.setFont('helvetica', 'bold');
   doc.setTextColor(245, 158, 11);
-  doc.text(book.title.toUpperCase(), 148.5, 128, { align: 'center' });
-
-  // 5. RODAPÉ TÉCNICO
-  doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
-  const infoTxt = `MODALIDADE: ON-LINE  •  DATA: ${new Date(date).toLocaleDateString('pt-BR')}  •  CÓDIGO: ${certCode}`;
-  doc.text(infoTxt, 148.5, 145, { align: 'center' });
-
-  // 6. ASSINATURA DE COMANDO (CONFORME SOLICITADO)
-  // Simulando a assinatura digital (Nome manuscrito)
-  doc.setTextColor(20, 30, 50);
-  doc.setFont('times', 'italic');
-  doc.setFontSize(22);
-  doc.text('Alex Andreoli Dantas', 148.5, 175, { align: 'center' });
-  
-  // Linha e Credenciais Oficiais
-  doc.setDrawColor(11, 13, 16);
-  doc.setLineWidth(0.5);
-  doc.line(98, 180, 198, 180);
-  
   doc.setFont('helvetica', 'bold');
+  doc.text(book.title.toUpperCase(), 148.5, 125, { align: 'center' });
+
+  // 4. EMENTA TÉCNICA (O Valor para o Mercado)
+  doc.setFillColor(248, 249, 251);
+  doc.rect(30, 135, 237, 20, 'F');
+  doc.setFontSize(9);
+  doc.setTextColor(120, 120, 120);
+  doc.text('EMENTA TÉCNICA E COMPETÊNCIAS AVALIADAS:', 35, 140);
+  doc.setTextColor(11, 13, 16);
+  doc.setFont('helvetica', 'bold');
+  // Lê o novo campo technical_skills cadastrado no Admin
+  const skills = book.technical_skills || "Doutrina Operacional e Protocolos de Inteligência";
+  doc.text(skills.toUpperCase(), 35, 149);
+
+  // 5. ASSINATURA DE COMANDO REAL
+  // Inserindo sua assinatura PNG transparente sobre a linha
+  if (SIGNATURE_BASE64) {
+    doc.addImage(SIGNATURE_BASE64, 'PNG', 118, 153, 60, 25);
+  }
+  
+  doc.setDrawColor(20, 20, 20);
+  doc.setLineWidth(0.5);
+  doc.line(98, 178, 198, 178); // Linha da assinatura
+  
   doc.setFontSize(11);
   doc.setTextColor(11, 13, 16);
-  doc.text('TENENTE ALEX ANDREOLI DANTAS', 148.5, 186, { align: 'center' });
+  doc.text('TENENTE ALEX ANDREOLI DANTAS', 148.5, 184, { align: 'center' });
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text('DIRETOR DE INSTRUÇÃO E TÁTICA', 148.5, 191, { align: 'center' });
-  doc.text('RE: 953118-1', 148.5, 196, { align: 'center' }); // Registro Oficial adicionado
+  doc.text('DIRETOR DE INSTRUÇÃO E TÁTICA | RE: 953118-1', 148.5, 189, { align: 'center' });
 
-  // 7. SELO DE AUTENTICIDADE (QR CODE PLACEHOLDER)
-  doc.setDrawColor(245, 158, 11);
-  doc.setLineWidth(0.2);
-  doc.rect(250, 165, 25, 25);
+  // 6. QR CODE DE AUTENTICIDADE
+  // Gerando um QR Code dinâmico para validação (usando serviço estático gratuito e confiável)
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=ATIV-VALID-${certCode}`;
+  doc.addImage(qrUrl, 'JPEG', 20, 168, 28, 28);
+  
   doc.setFontSize(6);
-  doc.text('VALIDAÇÃO', 262.5, 163, { align: 'center' });
+  doc.setTextColor(150, 150, 150);
+  doc.text('ESCANEIE PARA VALIDAR', 20, 166);
+  doc.setFontSize(8);
+  doc.setTextColor(11, 13, 16);
+  doc.text(`ID: ${certCode}`, 20, 200);
 
+  // 7. FINALIZAÇÃO E DOWNLOAD
   doc.save(`Certificado_ATIV_${certCode}.pdf`);
 };
