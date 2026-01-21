@@ -129,6 +129,7 @@ const App: React.FC = () => {
           readTime: b.read_time,
           level: b.level,
           quiz_data: b.quiz_data,
+          technical_skills: b.technical_skills, // <<< CRÍTICO: Reader/Certificado recebem isso
         }))
       );
     }
