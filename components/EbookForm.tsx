@@ -9,9 +9,11 @@ interface EbookFormProps {
   initialData?: any;
 }
 
-function splitCompetencies(raw: string): string[] {
-  if (!raw) return [];
-  return raw
+function splitCompetencies(raw: unknown): string[] {
+  const text = String(raw ?? '').trim();
+  if (!text) return [];
+
+  return text
     .replace(/\r/g, '')
     .split(/[\n•]+|(?:\s*\.\s*)/g) // quebra por linha, bullet •, ou ponto final
     .map((s) => s.trim())
@@ -20,40 +22,51 @@ function splitCompetencies(raw: string): string[] {
 }
 
 function joinCompetencies(list: string[]): string {
-  const clean = list.map((s) => (s ?? '').trim()).filter(Boolean);
-  // separado por ponto-final (com espaço depois do ponto)
+  const clean = list.map((s) => String(s ?? '').trim()).filter(Boolean);
   return clean.join('. ');
+}
+
+function normalizeCompetencyArray(raw: unknown): string[] {
+  // aceita:
+  // - string (legado)
+  // - array de strings (se um dia você migrar para JSON/array)
+  if (Array.isArray(raw)) {
+    return raw.map((x) => String(x ?? '').trim()).filter(Boolean).slice(0, 5);
+  }
+  return splitCompetencies(raw);
 }
 
 export const EbookForm: React.FC<EbookFormProps> = ({ onClose, onSave, initialData }) => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'settings' | 'content' | 'quiz'>('settings');
 
-  // Base (dados do ebook)
+  // Base (dados do ebook) — SEM technical_skills aqui
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     description: initialData?.description || '',
     category: initialData?.category || 'Mindset do Guerreiro',
-    cover_url: initialData?.coverUrl || '',
-    tags: initialData?.tags?.join(', ') || '',
-    read_time: initialData?.readTime || '',
+    cover_url: initialData?.coverUrl || initialData?.cover_url || '',
+    tags: Array.isArray(initialData?.tags) ? initialData.tags.join(', ') : '',
+    read_time: initialData?.readTime || initialData?.read_time || '',
     level: (initialData?.level as EbookLevel) || 'Básico',
     status: (initialData?.status as EbookStatus) || 'published',
-    content_html: initialData?.content || '',
-    // manteremos no banco como string final: "Comp1. Comp2. Comp3"
-    technical_skills: initialData?.technical_skills || '',
+    content_html: initialData?.content || initialData?.content_html || '',
     quiz_data: initialData?.quiz_data ? JSON.stringify(initialData.quiz_data, null, 2) : '[]',
   });
 
   // Competências (UI em 5 campos)
   const [competencies, setCompetencies] = useState<string[]>(['', '', '', '', '']);
 
-  // Quando abre em modo edição: popular os 5 campos a partir do string salvo
+  // Ao abrir em modo edição: popular os 5 campos a partir do que vier do banco
   useEffect(() => {
-    const parsed = splitCompetencies(initialData?.technical_skills || '');
+    const fromDb =
+      initialData?.technical_skills_list ?? // futuro (se virar array)
+      initialData?.technical_skills ??      // atual (string)
+      '';
+    const parsed = normalizeCompetencyArray(fromDb);
     const filled = [...parsed, '', '', '', '', ''].slice(0, 5);
     setCompetencies(filled);
-  }, [initialData?.technical_skills]);
+  }, [initialData?.technical_skills, initialData?.technical_skills_list]);
 
   const hasAtLeastOneCompetency = useMemo(() => {
     return competencies.some((c) => String(c || '').trim().length > 0);
@@ -77,8 +90,14 @@ export const EbookForm: React.FC<EbookFormProps> = ({ onClose, onSave, initialDa
         throw new Error('FORMATO INVÁLIDO NO QUIZ: Verifique a sintaxe JSON.');
       }
 
-      // 3) gera string final das competências
+      // 3) string final das competências (armazenamento atual)
       const technical_skills = joinCompetencies(competencies);
+
+      // 4) tags
+      const tags = formData.tags
+        .split(',')
+        .map((t) => t.trim())
+        .filter((t) => t !== '');
 
       const formattedData = {
         title: formData.title,
@@ -89,11 +108,9 @@ export const EbookForm: React.FC<EbookFormProps> = ({ onClose, onSave, initialDa
         level: formData.level,
         status: formData.status,
         content_html: formData.content_html,
-        technical_skills,
-        tags: formData.tags
-          .split(',')
-          .map((t) => t.trim())
-          .filter((t) => t !== ''),
+        technical_skills,                 // string (compatível com tudo agora)
+        // technical_skills_list: competencies.map(s=>s.trim()).filter(Boolean), // opcional p/ futuro
+        tags,
         quiz_data: parsedQuiz,
       };
 
@@ -124,7 +141,6 @@ export const EbookForm: React.FC<EbookFormProps> = ({ onClose, onSave, initialDa
             </button>
           </div>
 
-          {/* Tabs */}
           <div className="mt-4 flex gap-2">
             <button
               type="button"
