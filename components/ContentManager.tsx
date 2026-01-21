@@ -21,20 +21,22 @@ export const ContentManager: React.FC = () => {
 
     if (!error && data) {
       setBooks(data.map((b: any) => ({
-        id: b.id,
-        title: b.title,
-        description: b.description,
-        category: b.category,
-        coverUrl: b.cover_url,
-        tags: b.tags || [],
-        content: b.content_html,
-        readTime: b.read_time,
-        level: b.level as EbookLevel,
-        status: b.status as EbookStatus,
-        quiz_data: b.quiz_data, // SINCRONIZAÇÃO TÁTICA: Carrega o Quiz do banco
-        createdAt: b.created_at,
-        updatedAt: b.updated_at
-      })));
+  id: b.id,
+  title: b.title,
+  description: b.description,
+  category: b.category,
+  coverUrl: b.cover_url,
+  tags: b.tags || [],
+  content: b.content_html,
+  readTime: b.read_time,
+  level: b.level as EbookLevel,
+  status: b.status as EbookStatus,
+  quiz_data: b.quiz_data,
+  technical_skills: b.technical_skills, // <<< CRÍTICO: mantém fixo ao editar e ao certificar
+  createdAt: b.created_at,
+  updatedAt: b.updated_at
+})));
+
     }
     setLoading(false);
   };
