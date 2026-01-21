@@ -13,10 +13,12 @@ import { ValidateCertificate } from './components/ValidateCertificate';
 type Profile = {
   id: string;
   email: string;
+  full_name: string | null; // <<< adicionar
   role: UserRole;
   is_active: boolean;
   expires_at: string | null;
 };
+
 
 // === COMPONENTE DE LOGIN ===
 const LoginView: React.FC<{
@@ -148,7 +150,13 @@ const App: React.FC = () => {
       return;
     }
 
-    setUser({ id: data.id, name: data.email.split('@')[0], email: data.email, role: data.role } as User);
+    setUser({
+  id: data.id,
+  name: (data.full_name || data.email.split('@')[0]),
+  email: data.email,
+  role: data.role
+} as User);
+
     await fetchRealContent();
     setLoading(false);
   };
