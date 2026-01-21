@@ -2,8 +2,6 @@ import { jsPDF } from 'jspdf';
 import { User, Book } from '../types';
 
 const DEBUG_CERT = true;
-
-// Se precisar testar rapidamente, use estes toggles:
 const DISABLE_QR = false;
 
 function assertBrowser() {
@@ -17,11 +15,6 @@ function safeText(value: unknown, fallback: string) {
   return s.length ? s : fallback;
 }
 
-/**
- * Normaliza um dataURL para PNG via:
- * fetch(dataURL) -> blob -> createImageBitmap -> canvas -> toDataURL(png)
- * Evita "new Image()" e reduz risco de img.onerror / decode.
- */
 async function normalizeToPngDataURL(sourceDataUrl: string): Promise<string> {
   assertBrowser();
 
@@ -52,9 +45,6 @@ async function normalizeToPngDataURL(sourceDataUrl: string): Promise<string> {
   return canvas.toDataURL('image/png');
 }
 
-/**
- * Gera QR Code localmente e devolve dataURL PNG.
- */
 async function generateLocalQrPngDataURL(text: string): Promise<string> {
   assertBrowser();
 
@@ -76,7 +66,6 @@ async function generateLocalQrPngDataURL(text: string): Promise<string> {
 function formatPtBRDateTime(isoOrAny: string): string {
   const d = new Date(isoOrAny);
   if (Number.isNaN(d.getTime())) return safeText(isoOrAny, '');
-  // Mantém padrão pt-BR; timezone será o do dispositivo (suficiente para auditoria visual).
   return d.toLocaleString('pt-BR', {
     year: 'numeric',
     month: '2-digit',
@@ -178,22 +167,37 @@ export const generateCertificate = async (
     doc.setFontSize(10);
     doc.text(skills, 35, 149, { maxWidth: 225 });
 
-    // ===== 5) ASSINATURA DIGITAL (TEXTO SOBRE A LINHA) =====
+    // ===== 5) BLOCO RESPONSÁVEL + ASSINATURA DIGITAL SOBRE A LINHA =====
     const emittedAt = formatPtBRDateTime(date);
     const signatureLabel = `ASSINATURA DIGITAL · CÓDIGO: ${certCode}${emittedAt ? ` · ${emittedAt}` : ''}`;
 
-    // Linha
+    // Linha (posição final)
+    const lineY = 178;
+
     doc.setDrawColor(20, 20, 20);
     doc.setLineWidth(0.5);
-    doc.line(98, 178, 198, 178);
+    doc.line(98, lineY, 198, lineY);
 
-    // Texto “assinatura digital” sobre a linha (efeito assinatura)
-    doc.setFont('times', 'italic'); // mais “assinatura” que helvetica
-    doc.setFontSize(11);
+    // Texto “assinatura digital” EM CIMA DA LINHA (mesmo Y, com fundo branco)
+    // 1) calcula largura aproximada do texto para desenhar “faixa branca”
+    doc.setFont('times', 'italic');
+    doc.setFontSize(10);
+    const textWidth = doc.getTextWidth(signatureLabel);
+    const padding = 2.5;
+    const boxW = Math.min(textWidth + padding * 2, 110);
+    const boxH = 5.2;
+
+    // caixa centralizada exatamente sobre a linha
+    const boxX = 148.5 - boxW / 2;
+    const boxY = lineY - boxH / 2;
+
+    doc.setFillColor(255, 255, 255);
+    doc.rect(boxX, boxY, boxW, boxH, 'F');
+
     doc.setTextColor(40, 40, 40);
-    doc.text(signatureLabel, 148.5, 175.5, { align: 'center', maxWidth: 180 });
+    doc.text(signatureLabel, 148.5, lineY + 1.2, { align: 'center', maxWidth: 180 });
 
-    // Nome do responsável (fixo)
+    // Nome e cargo ABAIXO da linha
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.setTextColor(11, 13, 16);
@@ -204,19 +208,22 @@ export const generateCertificate = async (
     doc.setTextColor(60, 60, 60);
     doc.text('RESPONSÁVEL PELA CERTIFICAÇÃO | RE: 953118-1', 148.5, 189, { align: 'center' });
 
-    // ===== 6) QR CODE (URL PÚBLICA REAL) =====
+    // ===== 6) QR CODE (URL PÚBLICA REAL) + URL ESCRITA NO PDF =====
     if (!DISABLE_QR) {
       const validateUrl = `https://arquivos.ativbrasil.com.br/validar?code=${encodeURIComponent(certCode)}`;
 
       if (DEBUG_CERT) console.log('[CERT] validateUrl:', validateUrl);
 
       const qrDataUrl = await generateLocalQrPngDataURL(validateUrl);
-      if (DEBUG_CERT) console.log('[CERT] QR dataURL length:', qrDataUrl.length);
-
       const qrClean = await normalizeToPngDataURL(qrDataUrl);
-      if (DEBUG_CERT) console.log('[CERT] QR normalized OK. length:', qrClean.length);
 
       doc.addImage(qrClean, 'PNG', 20, 168, 28, 28);
+
+      // Debug visual (discreto) — mata qualquer dúvida do que foi codificado
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.8);
+      doc.setTextColor(120, 120, 120);
+      doc.text(validateUrl, 20, 199, { maxWidth: 80 });
     } else {
       if (DEBUG_CERT) console.log('[CERT] QR disabled.');
     }
