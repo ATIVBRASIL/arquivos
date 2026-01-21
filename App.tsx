@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navbar } from './components/Navbar';
 import { BookCard } from './components/BookCard';
 import { Reader } from './components/Reader';
@@ -13,12 +13,10 @@ import { ValidateCertificate } from './components/ValidateCertificate';
 type Profile = {
   id: string;
   email: string;
-  full_name: string | null; // <<< adicionar
   role: UserRole;
   is_active: boolean;
   expires_at: string | null;
 };
-
 
 // === COMPONENTE DE LOGIN ===
 const LoginView: React.FC<{
@@ -106,10 +104,9 @@ const App: React.FC = () => {
   }, []);
 
   // === ROTA PÚBLICA: /validar?code=... ===
-  const isValidationRoute = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    return window.location.pathname.replace(/\/+$/, '').endsWith('/validar');
-  }, []);
+  const isValidationRoute =
+    typeof window !== 'undefined' &&
+    window.location.pathname.replace(/\/+$/, '').endsWith('/validar');
 
   // Busca Livros Reais do Banco de Dados
   const fetchRealContent = async () => {
@@ -132,13 +129,6 @@ const App: React.FC = () => {
           readTime: b.read_time,
           level: b.level,
           quiz_data: b.quiz_data,
-
-          // === ATUALIZAÇÃO CRÍTICA (PASSO 3) ===
-          // Mantém as competências disponíveis para:
-          // - Certificado
-          // - Validação pública
-          // - Reader
-          technical_skills: b.technical_skills,
         }))
       );
     }
@@ -157,14 +147,7 @@ const App: React.FC = () => {
       return;
     }
 
-    setUser({
-  id: data.id,
-  name: (data.full_name || data.email.split('@')[0]),
-  email: data.email,
-  role: data.role
-} as User);
-
-
+    setUser({ id: data.id, name: data.email.split('@')[0], email: data.email, role: data.role } as User);
     await fetchRealContent();
     setLoading(false);
   };
@@ -185,7 +168,6 @@ const App: React.FC = () => {
     });
 
     return () => listener.subscription.unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Loading global (mas NÃO bloqueia a rota pública)
