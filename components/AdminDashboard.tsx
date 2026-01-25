@@ -4,7 +4,7 @@ import { User } from '../types';
 import { UsersManager } from './UsersManager';
 import { ContentManager } from './ContentManager';
 import { Overview } from './Overview';
-import { MessagesManager } from './MessagesManager'; // Importação da Inbox
+import { MessagesManager } from './MessagesManager'; 
 
 interface AdminDashboardProps {
   user: User;
@@ -14,8 +14,10 @@ interface AdminDashboardProps {
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onClose }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'content' | 'inbox'>('overview');
 
-  // Controle de permissões baseado nos perfis (RBAC)
-  const isMaster = user.role === 'admin_master';
+  // === CORREÇÃO DE PERMISSÕES (RBAC) ===
+  // Agora aceita 'admin' (sua role atual) como Master
+  const isMaster = user.role === 'admin' || user.role === 'admin_master';
+  
   const canManageUsers = isMaster || user.role === 'admin_op';
   const canManageContent = isMaster || user.role === 'admin_content';
 
@@ -27,7 +29,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onClose })
         <div className="p-6 border-b border-graphite-700 flex items-center justify-between">
           <div>
             <h2 className="font-display font-bold text-xl text-amber-500 uppercase tracking-tight">Painel ADM</h2>
-            <p className="text-[10px] text-text-muted uppercase tracking-widest">{user.role.replace('_', ' ')}</p>
+            <p className="text-[10px] text-text-muted uppercase tracking-widest">
+                {/* Exibe 'COMANDO' se for admin, ou o nome da role */}
+                {user.role === 'admin' ? 'COMANDO' : user.role.replace('_', ' ')}
+            </p>
           </div>
           <button onClick={onClose} className="md:hidden text-text-muted hover:text-amber-500 transition-colors">
             <ArrowLeft size={20} />
@@ -42,6 +47,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onClose })
             <LayoutDashboard size={20} /> Visão Geral
           </button>
 
+          {/* Botão Usuários - Agora Visível para Admin */}
           {canManageUsers && (
             <button 
               onClick={() => setActiveTab('users')}
@@ -51,6 +57,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onClose })
             </button>
           )}
 
+          {/* Botão Conteúdo - Agora Visível para Admin */}
           {canManageContent && (
             <button 
               onClick={() => setActiveTab('content')}
@@ -78,14 +85,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onClose })
       {/* Área de Conteúdo Dinâmico */}
       <main className="flex-1 p-6 md:p-10 overflow-y-auto">
         
-        {/* Renderização Condicional das Abas */}
         {activeTab === 'overview' && <Overview />}
 
         {activeTab === 'users' && <UsersManager />}
 
         {activeTab === 'content' && <ContentManager />}
 
-        {/* Módulo de Mensagens agora totalmente conectado */}
         {activeTab === 'inbox' && <MessagesManager />}
         
       </main>
