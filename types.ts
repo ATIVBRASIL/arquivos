@@ -1,22 +1,22 @@
-// --- DEFINIÇÕES DE USUÁRIO E ACESSO (RBAC) ---
+export type EbookLevel = 'Básico' | 'Intermediário' | 'Avançado';
+export type EbookStatus = 'draft' | 'published' | 'archived';
 
-export type UserRole = 'user' | 'admin_master' | 'admin_op' | 'admin_content';
+// ATUALIZADO: Novas telas 'tracks' e 'track' adicionadas
+export type ViewState = 'home' | 'tracks' | 'track' | 'reader' | 'admin';
+
+export type UserRole = 'user' | 'admin' | 'editor';
 
 export interface User {
   id: string;
-  name: string;
   email: string;
-  subscriptionStatus: 'active' | 'expired' | 'none';
+  name: string;
   role: UserRole;
-  expiresAt?: string | null;
-  lastLogin?: string;
-  lastActivity?: string;
+  // Campos de Inteligência / Onboarding
+  whatsapp?: string;
+  occupation?: string;
+  main_goal?: string;
+  experience_level?: string;
 }
-
-// --- DEFINIÇÕES DE CONTEÚDO (EBOOKS) ---
-
-export type EbookStatus = 'draft' | 'published' | 'archived';
-export type EbookLevel = 'Básico' | 'Intermediário' | 'Avançado';
 
 export interface Book {
   id: string;
@@ -25,52 +25,21 @@ export interface Book {
   category: string;
   coverUrl: string;
   tags: string[];
-  content: string; // HTML content
+  content: string;
   readTime: string;
   level: EbookLevel;
   status: EbookStatus;
-  createdAt: string;
-  updatedAt: string;
-  quiz_data?: any; // SISTEMA DE CERTIFICAÇÃO (PRD v1.1)
-  technical_skills?: string; // NOVO: EMENTA TÉCNICA PARA O CERTIFICADO (PRD v1.2)
+  technical_skills?: string;
+  quiz_data?: any;
 }
 
-export interface Category {
-  id: string;
-  title: string;
-  books: Book[];
-}
-
-// --- DEFINIÇÕES DE COMUNICAÇÃO (INBOX) ---
-
-export interface Message {
-  id: string;
-  title: string;
-  body: string;
-  senderId: string;
-  receiverId?: string | null; // Se null, é para todos
-  isRead: boolean;
-  actionLink?: string;
-  createdAt: string;
-}
-
-// --- ESTADOS DE VISUALIZAÇÃO DO APP ---
-
-export type ViewState = 'login' | 'home' | 'reader' | 'admin';
-
-// --- DEFINIÇÕES DE CERTIFICAÇÃO (PRD v1.1 e v1.2) ---
-
-export interface UserExam {
-  id: string;
-  user_id: string;
-  ebook_id: string;
-  score: number;
-  status: 'approved' | 'failed';
-  cert_code: string;
-  created_at: string;
-}
-
-// Extensão do tipo Book para incluir carga horária se necessário
-export interface BookWithStats extends Book {
-  workload?: number; // Carga horária em horas
+// NOVO: Estrutura para salvar o progresso (MVP no LocalStorage)
+export interface UserProgress {
+  opened: {
+    [bookId: string]: {
+      firstOpenedAt: string;
+      lastOpenedAt: string;
+      count: number;
+    };
+  };
 }
