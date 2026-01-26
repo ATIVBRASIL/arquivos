@@ -8,7 +8,7 @@ import { Button } from './components/Button';
 import { ValidateCertificate } from './components/ValidateCertificate';
 import { Shield, Loader2, MessageSquare, UserCheck, Save, Search, ChevronRight, BarChart3, Layers, PlayCircle, ArrowLeft } from 'lucide-react';
 
-// Importações ajustadas (Raiz + Src)
+// Importações
 import { Book, User, ViewState, UserRole, UserProgress } from './types'; 
 import { supabase } from './src/lib/supabase'; 
 import { TRACKS, groupBooksByTrack, TrackId } from './src/lib/tracks';
@@ -286,7 +286,7 @@ const App: React.FC = () => {
     // Recomendações: Livros recentes que ainda não foram abertos
     const recommendations = books
       .filter(b => !progress.opened[b.id])
-      .slice(0, 6); // Aumentei para 6 para ficar bom no carrossel
+      .slice(0, 6);
 
     return { openedCount, booksByTrack, recommendations };
   }, [books, progress]);
@@ -321,7 +321,7 @@ const App: React.FC = () => {
   return (
     <div className="bg-black min-h-screen text-text-primary relative pb-20">
       
-      {/* ONBOARDING MODAL ATUALIZADO */}
+      {/* ONBOARDING MODAL */}
       {isProfileIncomplete && (
         <div className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="w-full max-w-md bg-graphite-800 border-2 border-amber-500 p-8 rounded-2xl shadow-[0_0_50px_rgba(245,158,11,0.2)] animate-fade-in-up">
@@ -428,14 +428,13 @@ const App: React.FC = () => {
             </div>
           </section>
 
-          {/* BLOCO B: RECOMENDAÇÕES (CARROSSEL HORIZONTAL) */}
+          {/* BLOCO B: RECOMENDAÇÕES (CARROSSEL) */}
           {dashboardData.recommendations.length > 0 && (
             <section>
               <h2 className="text-lg font-display font-bold text-amber-500 uppercase mb-4 flex items-center gap-2">
                 <PlayCircle size={20} /> Sugestões do Comando
               </h2>
               
-              {/* Container de Scroll Horizontal (Snap) */}
               <div className="flex overflow-x-auto gap-4 pb-6 snap-x snap-mandatory scroll-smooth -mx-6 px-6 md:mx-0 md:px-0">
                 {dashboardData.recommendations.map(book => (
                   <div key={book.id} className="min-w-[280px] md:min-w-[300px] snap-center">
@@ -453,7 +452,7 @@ const App: React.FC = () => {
             </section>
           )}
 
-          {/* BLOCO C: TRILHAS EM RESUMO (OPÇÃO A - APENAS CARDS) */}
+          {/* BLOCO C: TRILHAS EM RESUMO (CARDS) */}
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-display font-bold text-white uppercase flex items-center gap-2">
@@ -529,7 +528,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* === VIEW: TRACK (DETALHE DA TRILHA) === */}
+      {/* === VIEW: TRACK (DETALHE DA TRILHA - GRID DUPLO NO MOBILE) === */}
       {view === 'track' && selectedTrackId && (
         <div className="pt-24 px-6 max-w-7xl mx-auto space-y-8 animate-fade-in pb-20">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-graphite-800">
@@ -557,7 +556,8 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {/* AQUI ESTÁ A MUDANÇA: grid-cols-2 no mobile */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {dashboardData.booksByTrack[selectedTrackId]
               ?.filter(b => 
                 trackSearchTerm === '' || 
