@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, ClipboardCheck, Shield, BookOpen } from 'lucide-react';
+import { X, ClipboardCheck, BookOpen } from 'lucide-react';
 import { Book, User } from '../types';
-import { QuizComponent } from './QuizComponent'; // Importação do novo componente
+import { QuizComponent } from './QuizComponent';
 
 interface ReaderProps {
   book: Book;
@@ -12,6 +12,21 @@ interface ReaderProps {
 export const Reader: React.FC<ReaderProps> = ({ book, user, onClose }) => {
   const [showQuiz, setShowQuiz] = useState(false);
   const hasQuiz = book.quiz_data && Array.isArray(book.quiz_data) && book.quiz_data.length > 0;
+
+  // === AÇÃO DE VALIDAÇÃO COM ALERTA ===
+  const handleStartValidation = () => {
+    // Texto Tático de Alto Valor Percebido
+    const confirmed = window.confirm(
+      "⚠️ ATENÇÃO OPERADOR\n\n" +
+      "A Certificação de Elite exige precisão mínima de 90%.\n" +
+      "Falhas não validam a competência técnica.\n\n" +
+      "Está pronto para iniciar a missão?"
+    );
+
+    if (confirmed) {
+      setShowQuiz(true);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col animate-fade-in">
@@ -30,12 +45,13 @@ export const Reader: React.FC<ReaderProps> = ({ book, user, onClose }) => {
           </div>
         </div>
 
+        {/* Botão de Validação Atualizado */}
         {hasQuiz && !showQuiz && (
           <button 
             className="bg-amber-500 hover:bg-amber-600 text-black px-4 py-2 rounded-lg font-bold text-[10px] uppercase flex items-center gap-2 shadow-glow transition-all active:scale-95 animate-pulse"
-            onClick={() => setShowQuiz(true)}
+            onClick={handleStartValidation}
           >
-            <ClipboardCheck size={16} /> Iniciar Avaliação
+            <ClipboardCheck size={16} /> INICIAR VALIDAÇÃO
           </button>
         )}
 

@@ -6,21 +6,20 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { SupportModal } from './components/SupportModal';
 import { Button } from './components/Button';
 import { Book, User, ViewState, UserRole } from './types';
-import { Shield, Loader2, MessageSquare } from 'lucide-react';
+import { Shield, Loader2, MessageSquare, UserCheck, Save } from 'lucide-react';
 import { supabase } from './src/lib/supabase';
 import { ValidateCertificate } from './components/ValidateCertificate';
 
 type Profile = {
   id: string;
   email: string;
-  full_name: string | null; // <<< adicionar
+  full_name: string | null;
   role: UserRole;
   is_active: boolean;
   expires_at: string | null;
 };
 
-
-// === COMPONENTE DE LOGIN ===
+// === LOGIN COMPONENT ===
 const LoginView: React.FC<{
   onLoginAction: (e: string, p: string) => Promise<void>;
   authLoading: boolean;
@@ -88,11 +87,13 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
+  
+  // NOVA STATE: Controla se o perfil está incompleto (sem nome)
+  const [isNameMissing, setIsNameMissing] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [savingName, setSavingName] = useState(false);
 
-  // === GH PAGES SPA FALLBACK ===
-  // Quando o Pages cai no 404.html, ele redireciona para:
-  // /?redirect=/validar?code=XXXX
-  // Aqui nós restauramos a rota original.
+  // Fallback para GitHub Pages
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -100,17 +101,13 @@ const App: React.FC = () => {
       if (redirect) {
         window.history.replaceState(null, '', redirect);
       }
-    } catch {
-      // ignora
-    }
+    } catch { }
   }, []);
 
-  // === ROTA PÚBLICA: /validar?code=... ===
   const isValidationRoute =
     typeof window !== 'undefined' &&
     window.location.pathname.replace(/\/+$/, '').endsWith('/validar');
 
-  // Busca Livros Reais do Banco de Dados
   const fetchRealContent = async () => {
     const { data, error } = await supabase
       .from('ebooks')
@@ -131,7 +128,7 @@ const App: React.FC = () => {
           readTime: b.read_time,
           level: b.level,
           quiz_data: b.quiz_data,
-          technical_skills: b.technical_skills, // <<< CRÍTICO: Reader/Certificado recebem isso
+          technical_skills: b.technical_skills,
         }))
       );
     }
@@ -150,15 +147,42 @@ const App: React.FC = () => {
       return;
     }
 
+    // VERIFICAÇÃO CRÍTICA: O nome está vazio?
+    if (!data.full_name || data.full_name.trim() === '') {
+      setIsNameMissing(true);
+    } else {
+      setIsNameMissing(false);
+    }
+
     setUser({
-  id: data.id,
-  name: (data.full_name || data.email.split('@')[0]),
-  email: data.email,
-  role: data.role
-} as User);
+      id: data.id,
+      name: (data.full_name || data.email.split('@')[0]),
+      email: data.email,
+      role: data.role
+    } as User);
 
     await fetchRealContent();
     setLoading(false);
+  };
+
+  const handleSaveName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !newName.trim()) return;
+
+    setSavingName(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ full_name: newName.trim().toUpperCase() }) // Força maiúsculas
+      .eq('id', user.id);
+
+    if (!error) {
+      // Atualiza o estado local imediatamente
+      setUser({ ...user, name: newName.trim().toUpperCase() });
+      setIsNameMissing(false);
+    } else {
+      alert("Erro ao salvar nome. Tente novamente.");
+    }
+    setSavingName(false);
   };
 
   useEffect(() => {
@@ -179,7 +203,6 @@ const App: React.FC = () => {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // Loading global (mas NÃO bloqueia a rota pública)
   if (loading && !isValidationRoute) {
     return (
       <div className="h-screen bg-black flex items-center justify-center">
@@ -188,12 +211,10 @@ const App: React.FC = () => {
     );
   }
 
-  // Rota pública não exige login
   if (isValidationRoute) {
     return <ValidateCertificate />;
   }
 
-  // Login
   if (!user) {
     return (
       <LoginView
@@ -210,6 +231,57 @@ const App: React.FC = () => {
 
   return (
     <div className="bg-black min-h-screen text-text-primary relative">
+      
+      {/* === MODAL DE IDENTIFICAÇÃO OBRIGATÓRIA === */}
+      {isNameMissing && (
+        <div className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-graphite-800 border-2 border-amber-500 p-8 rounded-2xl shadow-[0_0_50px_rgba(245,158,11,0.2)] animate-fade-in-up">
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mb-4">
+                <UserCheck size={32} className="text-amber-500" />
+              </div>
+              <h2 className="text-xl font-bold font-display text-white uppercase tracking-wider">
+                Identificação Obrigatória
+              </h2>
+              <p className="text-text-secondary text-xs mt-2">
+                Operador, para fins de emissão de <strong>Certificados e Validações Oficiais</strong>, precisamos do seu nome completo (Nome de Guerra).
+              </p>
+            </div>
+
+            <form onSubmit={handleSaveName} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">Nome Completo</label>
+                <input 
+                  autoFocus
+                  required
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Ex: CAPITÃO NASCIMENTO"
+                  className="w-full bg-black border border-graphite-600 rounded-lg p-4 text-white font-bold outline-none focus:border-amber-500 uppercase"
+                />
+              </div>
+
+              <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-lg">
+                <p className="text-[10px] text-amber-200 flex items-start gap-2">
+                  <Shield size={12} className="shrink-0 mt-0.5" />
+                  Este nome será impresso permanentemente nos seus documentos. Verifique a grafia.
+                </p>
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={savingName || newName.length < 3}
+                className="w-full bg-amber-500 hover:bg-amber-600 text-black font-black uppercase tracking-widest py-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {savingName ? <Loader2 className="animate-spin" /> : <Save size={18} />}
+                {savingName ? 'Registrando...' : 'Confirmar Identidade'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Conteúdo Normal (Fica atrás do modal se o nome faltar) */}
       {view !== 'admin' && (
         <Navbar
           currentView={view}
