@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../src/lib/supabase';
 import { User, Book } from '../types';
 import { EbookForm } from './EbookForm';
-import { Shield, Search, X, MessageSquare, Award, Target, Briefcase, Users, AlertTriangle, TrendingUp, BookOpen, Plus, Trash2, Edit } from 'lucide-react';
+import { Shield, Search, X, MessageSquare, Award, TrendingUp, BookOpen, Plus, Trash2, Edit, Users } from 'lucide-react';
 
 interface AdminDashboardProps {
   user: User;
@@ -22,22 +22,23 @@ interface ProfileData {
   created_at: string;
 }
 
-interface QuizAttempt {
+// Interface Ajustada para o Ranking (Tabela user_exams)
+interface UserExam {
   id: string;
   user_id: string;
-  book_id: string;
-  book_title: string;
+  ebook_id: string;
   score: number;
-  passed: boolean;
+  status: string; // 'approved' | 'failed'
   created_at: string;
 }
 
-// Tipos para Mensagens
+// CORREÇÃO TÁTICA: Interface ajustada para a tabela real 'messages'
 interface SupportMessage {
   id: string;
-  user_email: string;
-  user_name: string;
-  message: string;
+  email: string;      // Ajustado de user_email
+  full_name: string;  // Ajustado de user_name
+  subject: string;    // Novo campo
+  content: string;    // Ajustado de message
   created_at: string;
   status: 'new' | 'read';
 }
@@ -53,7 +54,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
   // Estados de Dados
   const [profiles, setProfiles] = useState<ProfileData[]>([]);
-  const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
+  const [attempts, setAttempts] = useState<UserExam[]>([]); 
   const [ebooks, setEbooks] = useState<Book[]>([]);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   
@@ -72,18 +73,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     try {
       // 1. Dados de Inteligência
       const { data: profilesData } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-      const { data: attemptsData } = await supabase.from('quiz_attempts').select('*').order('created_at', { ascending: false });
       
+      // Busca Ranking (Correção anterior mantida)
+      const { data: examsData } = await supabase.from('user_exams').select('*').order('created_at', { ascending: false });
+
       // 2. Dados de Conteúdo
       const { data: ebooksData } = await supabase.from('ebooks').select('*').order('created_at', { ascending: false });
 
-      // 3. Dados de Mensagens
-      const { data: msgsData } = await supabase.from('support_messages').select('*').order('created_at', { ascending: false });
+      // 3. Dados de Mensagens (CORREÇÃO AQUI: Tabela 'messages')
+      const { data: msgsData } = await supabase.from('messages').select('*').order('created_at', { ascending: false });
 
       setProfiles(profilesData || []);
-      setAttempts(attemptsData || []);
+      setAttempts(examsData || []); 
       
-      // Mapeamento manual para garantir compatibilidade
       const formattedBooks: Book[] = (ebooksData || []).map((b: any) => ({
         id: b.id,
         title: b.title,
@@ -119,50 +121,65 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   const handleSaveBook = () => {
     setIsEditingBook(false);
     setSelectedBook(undefined);
-    fetchAllData(); // Recarrega a lista para mostrar o novo livro
+    fetchAllData(); 
   };
 
   const handleDeleteMessage = async (id: string) => {
     if (!confirm('Excluir mensagem?')) return;
-    await supabase.from('support_messages').delete().eq('id', id);
+    // CORREÇÃO: Deletar da tabela correta 'messages'
+    await supabase.from('messages').delete().eq('id', id);
     fetchAllData();
   };
 
-  // === LÓGICA DE INTELIGÊNCIA ===
+  // === LÓGICA DE INTELIGÊNCIA (RANKING) ===
   const ranking = useMemo(() => {
     const userStats: Record<string, { passedCount: number, name: string, scoreSum: number }> = {};
-    attempts.filter(a => a.passed).forEach(attempt => {
+    
+    attempts.filter(a => a.status === 'approved').forEach(attempt => {
       if (!userStats[attempt.user_id]) {
         const profile = profiles.find(p => p.id === attempt.user_id);
-        userStats[attempt.user_id] = { passedCount: 0, name: profile?.full_name || 'Desconhecido', scoreSum: 0 };
+        userStats[attempt.user_id] = { 
+            passedCount: 0, 
+            name: profile?.full_name || 'Agente Desconhecido', 
+            scoreSum: 0 
+        };
       }
       userStats[attempt.user_id].passedCount += 1;
       userStats[attempt.user_id].scoreSum += attempt.score;
     });
+
     return Object.entries(userStats)
       .sort(([, a], [, b]) => b.passedCount - a.passedCount || b.scoreSum - a.scoreSum)
       .slice(0, 10);
   }, [attempts, profiles]);
 
+  // === LÓGICA DE RADAR DE RISCO ===
   const strugglingUsers = useMemo(() => {
     const fails: Record<string, Record<string, number>> = {};
-    attempts.filter(a => !a.passed).forEach(a => {
+    
+    attempts.filter(a => a.status !== 'approved').forEach(a => {
       if (!fails[a.user_id]) fails[a.user_id] = {};
-      if (!fails[a.user_id][a.book_id]) fails[a.user_id][a.book_id] = 0;
-      fails[a.user_id][a.book_id] += 1;
+      if (!fails[a.user_id][a.ebook_id]) fails[a.user_id][a.ebook_id] = 0;
+      fails[a.user_id][a.ebook_id] += 1;
     });
+
     const alerts: Array<{ name: string, book: string, count: number, whatsapp?: string }> = [];
-    Object.entries(fails).forEach(([userId, books]) => {
-      Object.entries(books).forEach(([bookId, count]) => {
-        if (count >= 3) {
+    Object.entries(fails).forEach(([userId, booksMap]) => {
+      Object.entries(booksMap).forEach(([bookId, count]) => {
+        if (count >= 2) { 
           const profile = profiles.find(p => p.id === userId);
-          const bookTitle = attempts.find(at => at.book_id === bookId)?.book_title || bookId;
-          alerts.push({ name: profile?.full_name || 'Desconhecido', whatsapp: profile?.whatsapp, book: bookTitle, count });
+          const bookTitle = ebooks.find(e => e.id === bookId)?.title || 'Manual Desconhecido';
+          alerts.push({ 
+            name: profile?.full_name || 'Desconhecido', 
+            whatsapp: profile?.whatsapp, 
+            book: bookTitle, 
+            count 
+          });
         }
       });
     });
     return alerts;
-  }, [attempts, profiles]);
+  }, [attempts, profiles, ebooks]);
 
   const filteredProfiles = profiles.filter(p => 
     (p.full_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
@@ -181,9 +198,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     return (
       <div className="fixed inset-0 z-50 bg-black overflow-y-auto animate-fade-in">
         <EbookForm 
-          initialData={selectedBook} // <--- Nome correto conforme EbookForm.tsx 
-          onClose={() => setIsEditingBook(false)} // <--- Nome correto conforme EbookForm.tsx
-          onSave={handleSaveBook} 
+          initialData={selectedBook} 
+          onClose={() => setIsEditingBook(false)} 
+          onSave={async (data) => {
+            if (selectedBook) {
+               await supabase.from('ebooks').update(data).eq('id', selectedBook.id);
+            } else {
+               await supabase.from('ebooks').insert([data]);
+            }
+            handleSaveBook();
+          }}
         />
       </div>
     );
@@ -197,7 +221,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
             <div className="bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
-              <Shield className="text-amber-500" size={24} />
+             <Shield className="text-amber-500" size={24} />
             </div>
             <div>
               <h2 className="text-xl font-display font-bold text-white uppercase tracking-wider hidden md:block">
@@ -281,13 +305,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
             {subTab === 'ranking' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
                 <div className="bg-graphite-800 border border-graphite-700 rounded-xl p-6">
-                  <h3 className="text-lg font-bold text-purple-500 uppercase mb-4 flex items-center gap-2"><TrendingUp size={20} /> Top Agentes</h3>
-                  <div className="space-y-4">{ranking.map(([userId, stats], index) => (
-                    <div key={userId} className="flex items-center justify-between p-4 bg-black/40 rounded-lg border border-graphite-700">
-                      <div className="flex items-center gap-4"><div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm ${index === 0 ? 'bg-amber-500 text-black' : 'bg-graphite-700 text-white'}`}>{index + 1}</div><div className="font-bold text-white uppercase">{stats.name}</div></div>
-                      <div className="flex items-center gap-2 text-purple-400 font-bold"><Award size={16} /><span>{stats.passedCount} Aprovações</span></div>
-                    </div>
-                  ))}</div>
+                  <h3 className="text-lg font-bold text-purple-500 uppercase mb-4 flex items-center gap-2"><TrendingUp size={20} /> Top Agentes (Aprovados)</h3>
+                  {ranking.length === 0 ? (
+                      <div className="text-text-muted text-xs p-4 italic">Nenhum agente aprovado ainda.</div>
+                  ) : (
+                    <div className="space-y-4">{ranking.map(([userId, stats], index) => (
+                      <div key={userId} className="flex items-center justify-between p-4 bg-black/40 rounded-lg border border-graphite-700">
+                        <div className="flex items-center gap-4"><div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm ${index === 0 ? 'bg-amber-500 text-black' : 'bg-graphite-700 text-white'}`}>{index + 1}</div><div className="font-bold text-white uppercase">{stats.name}</div></div>
+                        <div className="flex items-center gap-2 text-purple-400 font-bold"><Award size={16} /><span>{stats.passedCount} Aprovações</span></div>
+                      </div>
+                    ))}</div>
+                  )}
                 </div>
               </div>
             )}
@@ -357,7 +385,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
         {/* MENSAGENS (SUPORTE) */}
         {mainTab === 'messages' && (
           <div className="animate-fade-in space-y-6">
-             <h3 className="text-xl font-display font-bold text-white uppercase flex items-center gap-2">
+              <h3 className="text-xl font-display font-bold text-white uppercase flex items-center gap-2">
                 <MessageSquare size={24} className="text-amber-500"/> Suporte Operacional
               </h3>
               
@@ -370,11 +398,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                       {messages.map(msg => (
                         <tr key={msg.id} className="hover:bg-graphite-700/50">
                           <td className="p-4 w-1/4">
-                            <div className="font-bold text-white">{msg.user_name}</div>
-                            <div className="text-xs text-text-muted">{msg.user_email}</div>
+                            <div className="font-bold text-white">{msg.full_name}</div>
+                            <div className="text-xs text-text-muted">{msg.email}</div>
                             <div className="text-[10px] text-text-muted mt-1">{new Date(msg.created_at).toLocaleDateString()}</div>
                           </td>
-                          <td className="p-4 text-sm text-text-secondary">{msg.message}</td>
+                          <td className="p-4">
+                             <div className="text-xs font-bold text-amber-500 uppercase mb-1">{msg.subject}</div>
+                             <div className="text-sm text-text-secondary">{msg.content}</div>
+                          </td>
                           <td className="p-4 w-20 text-right">
                              <button onClick={() => handleDeleteMessage(msg.id)} className="text-text-muted hover:text-red-500"><Trash2 size={18} /></button>
                           </td>
