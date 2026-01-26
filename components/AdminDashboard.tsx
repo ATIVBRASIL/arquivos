@@ -181,9 +181,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     return (
       <div className="fixed inset-0 z-50 bg-black overflow-y-auto animate-fade-in">
         <EbookForm 
-          bookToEdit={selectedBook} 
-          onCancel={() => setIsEditingBook(false)} 
-          onSave={handleSaveBook} // <--- CORREÇÃO AQUI: Mudamos de onSuccess para onSave
+          initialData={selectedBook} // <--- Nome correto conforme EbookForm.tsx 
+          onClose={() => setIsEditingBook(false)} // <--- Nome correto conforme EbookForm.tsx
+          onSave={handleSaveBook} 
         />
       </div>
     );
