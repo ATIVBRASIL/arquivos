@@ -110,8 +110,9 @@ const App: React.FC = () => {
   const [selectedTrackId, setSelectedTrackId] = useState<TrackId | null>(null);
   const [trackSearchTerm, setTrackSearchTerm] = useState('');
   
-  // State de Progresso (MVP Local)
+  // State de Progresso (Cursando e Certificados)
   const [progress, setProgress] = useState<UserProgress>({ opened: {} });
+  const [completedBookIds, setCompletedBookIds] = useState<string[]>([]); // Nova Inteligência
 
   // === HELPERS DE PROGRESSO ===
   const loadLocalProgress = (userId: string) => {
@@ -146,6 +147,13 @@ const App: React.FC = () => {
 
     setProgress(newProgress);
     localStorage.setItem(`ativ_progress_${user.id}`, JSON.stringify(newProgress));
+  };
+
+  // Função para determinar o status do livro no card
+  const getBookStatus = (bookId: string): 'cursando' | 'certificado' | undefined => {
+    if (completedBookIds.includes(bookId)) return 'certificado';
+    if (progress.opened[bookId]) return 'cursando';
+    return undefined;
   };
 
   useEffect(() => {
@@ -199,6 +207,17 @@ const App: React.FC = () => {
       setAuthError('Perfil não autorizado.');
       await supabase.auth.signOut();
       return;
+    }
+
+    // Busca Certificados Aprovados (Inteligência Central)
+    const { data: exams } = await supabase
+      .from('user_exams')
+      .select('ebook_id')
+      .eq('user_id', authUser.id)
+      .eq('status', 'approved');
+
+    if (exams) {
+      setCompletedBookIds(exams.map(e => e.ebook_id));
     }
 
     const isIncomplete = !data.full_name || !data.whatsapp || !data.occupation;
@@ -283,13 +302,13 @@ const App: React.FC = () => {
     const openedCount = Object.keys(progress.opened).length;
     const booksByTrack = groupBooksByTrack(books);
     
-    // Recomendações: Livros recentes que ainda não foram abertos
+    // Recomendações: Livros recentes que ainda não foram certificados
     const recommendations = books
-      .filter(b => !progress.opened[b.id])
+      .filter(b => !completedBookIds.includes(b.id))
       .slice(0, 6);
 
     return { openedCount, booksByTrack, recommendations };
-  }, [books, progress]);
+  }, [books, progress, completedBookIds]);
 
   // === RENDERIZAÇÃO ===
   if (loading && !isValidationRoute) {
@@ -422,9 +441,9 @@ const App: React.FC = () => {
             <div className="bg-graphite-800 border border-graphite-700 p-6 rounded-2xl flex flex-col justify-between">
               <div className="flex items-center gap-2 text-text-muted mb-2">
                 <Layers size={16} className="text-amber-500" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Trilhas no Acervo</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">Certificados Ativos</span>
               </div>
-              <div className="text-3xl font-display font-bold text-white">5</div>
+              <div className="text-3xl font-display font-bold text-white">{completedBookIds.length}</div>
             </div>
           </section>
 
@@ -439,7 +458,8 @@ const App: React.FC = () => {
                 {dashboardData.recommendations.map(book => (
                   <div key={book.id} className="min-w-[280px] md:min-w-[300px] snap-center">
                     <BookCard 
-                      book={book} 
+                      book={book}
+                      status={getBookStatus(book.id)} // Injeção de status
                       onClick={(b) => {
                         markBookOpened(b.id);
                         setCurrentBook(b);
@@ -492,7 +512,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* === VIEW: TRACKS (LISTA DE TODAS AS TRILHAS) === */}
+      {/* === VIEW: TRACKS === */}
       {view === 'tracks' && (
         <div className="pt-24 px-6 max-w-3xl mx-auto space-y-6 animate-fade-in pb-10">
           <div className="flex items-center gap-4 mb-8">
@@ -528,7 +548,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* === VIEW: TRACK (DETALHE DA TRILHA - GRID DUPLO NO MOBILE) === */}
+      {/* === VIEW: TRACK === */}
       {view === 'track' && selectedTrackId && (
         <div className="pt-24 px-6 max-w-7xl mx-auto space-y-8 animate-fade-in pb-20">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-graphite-800">
@@ -556,7 +576,6 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* AQUI ESTÁ A MUDANÇA: grid-cols-2 no mobile */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {dashboardData.booksByTrack[selectedTrackId]
               ?.filter(b => 
@@ -568,6 +587,7 @@ const App: React.FC = () => {
                 <BookCard 
                   key={book.id} 
                   book={book} 
+                  status={getBookStatus(book.id)} // Injeção de status
                   onClick={(b) => {
                     markBookOpened(b.id);
                     setCurrentBook(b);
@@ -576,11 +596,6 @@ const App: React.FC = () => {
                 />
               ))
             }
-            {(!dashboardData.booksByTrack[selectedTrackId] || dashboardData.booksByTrack[selectedTrackId].length === 0) && (
-              <div className="col-span-full py-20 text-center text-text-muted italic">
-                Nenhum protocolo classificado nesta trilha ainda.
-              </div>
-            )}
           </div>
         </div>
       )}
