@@ -85,14 +85,16 @@ export const ValidateCertificate: React.FC = () => {
         let ebook_title: string | null = null;
         let technical_skills: string | null = null;
 
+        // ALTERAÇÃO 1: Adicionado 'full_name' no select
         const [{ data: profile }, { data: ebook }] = await Promise.all([
-          supabase.from('profiles').select('email').eq('id', exam.user_id).maybeSingle(),
+          supabase.from('profiles').select('email, full_name').eq('id', exam.user_id).maybeSingle(),
           supabase.from('ebooks').select('title, technical_skills').eq('id', exam.ebook_id).maybeSingle(),
         ]);
 
         email = profile?.email ?? null;
-        // seu app monta user.name a partir do email antes do @ :contentReference[oaicite:1]{index=1}
-        full_name = email ? email.split('@')[0] : null;
+        
+        // ALTERAÇÃO 2: Lógica para usar o Nome Completo do banco, ou fallback para o email
+        full_name = profile?.full_name || (email ? email.split('@')[0] : 'DESCONHECIDO');
 
         ebook_title = ebook?.title ?? null;
         technical_skills = (ebook as any)?.technical_skills ?? null;
@@ -189,7 +191,8 @@ export const ValidateCertificate: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="p-4 rounded-xl border border-graphite-700 bg-black/30">
-                  <div className="text-[10px] uppercase font-black tracking-widest text-text-muted">Operador</div>
+                  {/* ALTERAÇÃO 3: Rótulo alterado de Operador para Agente */}
+                  <div className="text-[10px] uppercase font-black tracking-widest text-text-muted">Agente</div>
                   <div className="text-sm font-bold">{(data.full_name || '-').toUpperCase()}</div>
                   <div className="text-[11px] text-text-muted">{data.email || ''}</div>
                 </div>

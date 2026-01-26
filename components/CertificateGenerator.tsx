@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import QRCode from 'qrcode'; // Alteração Tática: Importação estática para corrigir erro 503
 import { User, Book } from '../types';
 
 const DEBUG_CERT = true;
@@ -52,8 +53,7 @@ async function generateLocalQrPngDataURL(text: string): Promise<string> {
   canvas.width = 256;
   canvas.height = 256;
 
-  const QRCode = (await import('qrcode')).default;
-
+  // Alteração: Uso direto da biblioteca importada no topo
   await QRCode.toCanvas(canvas, text, {
     width: 256,
     margin: 1,
