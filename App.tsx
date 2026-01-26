@@ -8,7 +8,7 @@ import { Button } from './components/Button';
 import { ValidateCertificate } from './components/ValidateCertificate';
 import { Shield, Loader2, MessageSquare, UserCheck, Save, Search, ChevronRight, BarChart3, Layers, PlayCircle, ArrowLeft } from 'lucide-react';
 
-// Importações ajustadas para sua estrutura de pastas
+// Importações ajustadas (Raiz + Src)
 import { Book, User, ViewState, UserRole, UserProgress } from './types'; 
 import { supabase } from './src/lib/supabase'; 
 import { TRACKS, groupBooksByTrack, TrackId } from './src/lib/tracks';
@@ -286,7 +286,7 @@ const App: React.FC = () => {
     // Recomendações: Livros recentes que ainda não foram abertos
     const recommendations = books
       .filter(b => !progress.opened[b.id])
-      .slice(0, 4);
+      .slice(0, 6); // Aumentei para 6 para ficar bom no carrossel
 
     return { openedCount, booksByTrack, recommendations };
   }, [books, progress]);
@@ -321,7 +321,7 @@ const App: React.FC = () => {
   return (
     <div className="bg-black min-h-screen text-text-primary relative pb-20">
       
-      {/* ONBOARDING MODAL (ATUALIZADO COM SEUS TEXTOS E CORES) */}
+      {/* ONBOARDING MODAL ATUALIZADO */}
       {isProfileIncomplete && (
         <div className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="w-full max-w-md bg-graphite-800 border-2 border-amber-500 p-8 rounded-2xl shadow-[0_0_50px_rgba(245,158,11,0.2)] animate-fade-in-up">
@@ -340,48 +340,25 @@ const App: React.FC = () => {
             <form onSubmit={handleSaveProfile} className="space-y-4">
               {onboardingStep === 1 && (
                 <div className="space-y-4 animate-fade-in">
-                  
-                  {/* CAMPO NOME - ATUALIZADO */}
                   <div>
                     <label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">
                       Este nome será gravado nos certificados
                     </label>
-                    <input 
-                      autoFocus 
-                      required 
-                      value={profileForm.fullName} 
-                      onChange={(e) => setProfileForm({...profileForm, fullName: e.target.value})} 
-                      placeholder="NOME COMPLETO" 
-                      className="w-full bg-graphite-800 border border-graphite-600 rounded-lg p-4 text-white font-bold outline-none focus:border-amber-500 uppercase placeholder:text-gray-500" 
-                    />
+                    <input autoFocus required value={profileForm.fullName} onChange={(e) => setProfileForm({...profileForm, fullName: e.target.value})} placeholder="NOME COMPLETO" className="w-full bg-graphite-800 border border-graphite-600 rounded-lg p-4 text-white font-bold outline-none focus:border-amber-500 uppercase placeholder:text-gray-500" />
                   </div>
-
-                  {/* CAMPO WHATSAPP - ATUALIZADO */}
                   <div>
                     <label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">
                       Para receber promoções de treinamentos
                     </label>
-                    <input 
-                      type="tel" 
-                      required 
-                      value={profileForm.whatsapp} 
-                      onChange={(e) => setProfileForm({...profileForm, whatsapp: e.target.value})} 
-                      placeholder="WhatsApp" 
-                      className="w-full bg-graphite-800 border border-graphite-600 rounded-lg p-4 text-white font-bold outline-none focus:border-amber-500 placeholder:text-gray-500" 
-                    />
+                    <input type="tel" required value={profileForm.whatsapp} onChange={(e) => setProfileForm({...profileForm, whatsapp: e.target.value})} placeholder="WhatsApp" className="w-full bg-graphite-800 border border-graphite-600 rounded-lg p-4 text-white font-bold outline-none focus:border-amber-500 placeholder:text-gray-500" />
                   </div>
                 </div>
               )}
-
               {onboardingStep === 2 && (
                 <div className="space-y-4 animate-fade-in">
                   <div>
                     <label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">Área de Atuação</label>
-                    <select 
-                      value={profileForm.occupation} 
-                      onChange={(e) => setProfileForm({...profileForm, occupation: e.target.value})} 
-                      className="w-full bg-graphite-800 border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500"
-                    >
+                    <select value={profileForm.occupation} onChange={(e) => setProfileForm({...profileForm, occupation: e.target.value})} className="w-full bg-graphite-800 border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500">
                       <option>Segurança Privada</option>
                       <option>Segurança Pública</option>
                       <option>Forças Armadas</option>
@@ -390,11 +367,7 @@ const App: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">Experiência</label>
-                    <select 
-                      value={profileForm.experience} 
-                      onChange={(e) => setProfileForm({...profileForm, experience: e.target.value})} 
-                      className="w-full bg-graphite-800 border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500"
-                    >
+                    <select value={profileForm.experience} onChange={(e) => setProfileForm({...profileForm, experience: e.target.value})} className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500">
                       <option>Iniciante (0-2 anos)</option>
                       <option>Intermediário (2-5 anos)</option>
                       <option>Veterano (5-10 anos)</option>
@@ -403,11 +376,7 @@ const App: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">Objetivo</label>
-                    <select 
-                      value={profileForm.goal} 
-                      onChange={(e) => setProfileForm({...profileForm, goal: e.target.value})} 
-                      className="w-full bg-graphite-800 border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500"
-                    >
+                    <select value={profileForm.goal} onChange={(e) => setProfileForm({...profileForm, goal: e.target.value})} className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500">
                       <option>Especialização Técnica</option>
                       <option>Promoção na Carreira</option>
                       <option>Mindset e Comportamento</option>
@@ -415,7 +384,6 @@ const App: React.FC = () => {
                   </div>
                 </div>
               )}
-
               <button type="submit" disabled={savingProfile} className="w-full bg-amber-500 hover:bg-amber-600 text-black font-black uppercase tracking-widest py-4 rounded-lg transition-all flex items-center justify-center gap-2 mt-4">
                 {savingProfile ? <Loader2 className="animate-spin" /> : onboardingStep === 1 ? <>Próxima Etapa <ChevronRight size={18} /></> : <><Save size={18} /> Confirmar</>}
               </button>
@@ -438,9 +406,9 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* === VIEW: HOME (PAINEL) === */}
+      {/* === VIEW: HOME (PAINEL TÁTICO) === */}
       {view === 'home' && !isProfileIncomplete && (
-        <div className="pt-24 px-6 max-w-7xl mx-auto space-y-10 animate-fade-in">
+        <div className="pt-24 px-6 max-w-7xl mx-auto space-y-10 animate-fade-in pb-10">
           
           {/* BLOCO A: RESUMO DE PROGRESSO */}
           <section className="grid grid-cols-2 gap-4">
@@ -460,29 +428,32 @@ const App: React.FC = () => {
             </div>
           </section>
 
-          {/* BLOCO B: RECOMENDAÇÕES */}
+          {/* BLOCO B: RECOMENDAÇÕES (CARROSSEL HORIZONTAL) */}
           {dashboardData.recommendations.length > 0 && (
             <section>
               <h2 className="text-lg font-display font-bold text-amber-500 uppercase mb-4 flex items-center gap-2">
                 <PlayCircle size={20} /> Sugestões do Comando
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              
+              {/* Container de Scroll Horizontal (Snap) */}
+              <div className="flex overflow-x-auto gap-4 pb-6 snap-x snap-mandatory scroll-smooth -mx-6 px-6 md:mx-0 md:px-0">
                 {dashboardData.recommendations.map(book => (
-                  <BookCard 
-                    key={book.id} 
-                    book={book} 
-                    onClick={(b) => {
-                      markBookOpened(b.id);
-                      setCurrentBook(b);
-                      setView('reader');
-                    }} 
-                  />
+                  <div key={book.id} className="min-w-[280px] md:min-w-[300px] snap-center">
+                    <BookCard 
+                      book={book} 
+                      onClick={(b) => {
+                        markBookOpened(b.id);
+                        setCurrentBook(b);
+                        setView('reader');
+                      }} 
+                    />
+                  </div>
                 ))}
               </div>
             </section>
           )}
 
-          {/* BLOCO C: TRILHAS EM RESUMO */}
+          {/* BLOCO C: TRILHAS EM RESUMO (OPÇÃO A - APENAS CARDS) */}
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-display font-bold text-white uppercase flex items-center gap-2">
@@ -492,30 +463,27 @@ const App: React.FC = () => {
                 Ver Todas
               </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {TRACKS.slice(0, 4).map(track => {
                 const count = dashboardData.booksByTrack[track.id]?.length || 0;
                 return (
                   <button 
                     key={track.id}
                     onClick={() => { setSelectedTrackId(track.id); setView('track'); }}
-                    className="bg-graphite-800 border border-graphite-700 p-5 rounded-xl text-left hover:border-amber-500 transition-all group"
+                    className="bg-graphite-800 border border-graphite-700 p-4 rounded-xl text-left hover:border-amber-500 transition-all group flex flex-col justify-between h-32"
                   >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-display font-bold text-white uppercase group-hover:text-amber-500 transition-colors">
-                          {track.title}
-                        </h3>
-                        <p className="text-[11px] text-text-muted mt-1 max-w-[90%]">
-                          {track.description}
-                        </p>
-                      </div>
-                      <ChevronRight className="text-graphite-600 group-hover:text-amber-500" size={20} />
+                    <div>
+                      <h3 className="font-display font-bold text-white uppercase text-xs group-hover:text-amber-500 transition-colors line-clamp-2">
+                        {track.title}
+                      </h3>
                     </div>
-                    <div className="mt-4 flex items-center gap-2">
+                    
+                    <div className="flex items-center justify-between mt-2">
                       <span className="text-[10px] font-black bg-black/40 px-2 py-1 rounded text-text-secondary">
-                        {count} Protocolos
+                        {count} ARQ.
                       </span>
+                      <ChevronRight className="text-graphite-600 group-hover:text-amber-500" size={16} />
                     </div>
                   </button>
                 )
@@ -527,7 +495,7 @@ const App: React.FC = () => {
 
       {/* === VIEW: TRACKS (LISTA DE TODAS AS TRILHAS) === */}
       {view === 'tracks' && (
-        <div className="pt-24 px-6 max-w-3xl mx-auto space-y-6 animate-fade-in">
+        <div className="pt-24 px-6 max-w-3xl mx-auto space-y-6 animate-fade-in pb-10">
           <div className="flex items-center gap-4 mb-8">
             <button onClick={() => setView('home')} className="bg-graphite-800 p-2 rounded-full hover:bg-amber-500 hover:text-black transition-colors">
               <ArrowLeft size={20} />
@@ -563,7 +531,7 @@ const App: React.FC = () => {
 
       {/* === VIEW: TRACK (DETALHE DA TRILHA) === */}
       {view === 'track' && selectedTrackId && (
-        <div className="pt-24 px-6 max-w-7xl mx-auto space-y-8 animate-fade-in">
+        <div className="pt-24 px-6 max-w-7xl mx-auto space-y-8 animate-fade-in pb-20">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-graphite-800">
             <div className="space-y-2">
               <button onClick={() => setView('tracks')} className="flex items-center gap-2 text-[10px] font-black uppercase text-text-muted hover:text-amber-500 mb-2">
@@ -577,7 +545,6 @@ const App: React.FC = () => {
               </p>
             </div>
             
-            {/* Busca na Trilha */}
             <div className="w-full md:w-80 relative">
               <input 
                 type="text" 
