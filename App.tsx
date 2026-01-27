@@ -7,9 +7,8 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { SupportModal } from './components/SupportModal';
 import { Button } from './components/Button';
 import { ValidateCertificate } from './components/ValidateCertificate';
-import { Shield, Loader2, MessageSquare, UserCheck, Save, Search, ChevronRight, BarChart3, Layers, PlayCircle, ArrowLeft, UserPlus, CheckCircle, AlertCircle } from 'lucide-react';
+import { Shield, Loader2, MessageSquare, UserCheck, Save, Search, ChevronRight, BarChart3, Layers, PlayCircle, ArrowLeft, UserPlus, CheckCircle, AlertCircle, Mail, Lock, Key } from 'lucide-react';
 
-// Importações de Inteligência e Dados
 import { Book, User, ViewState, UserRole, UserProgress, Cohort } from './types'; 
 import { supabase } from './src/lib/supabase'; 
 import { TRACKS, groupBooksByTrack, TrackId } from './src/lib/tracks';
@@ -27,219 +26,227 @@ type Profile = {
   expires_at: string | null;
 };
 
-// === LOGIN COMPONENT (ATUALIZADO) ===
+// === LOGIN COMPONENT (PIVOTADO: EMAIL & SENHA + CONVITE) ===
 const LoginView: React.FC<{
   onLoginAction: (e: string, p: string) => Promise<void>;
   authLoading: boolean;
   authError: string | null;
 }> = ({ onLoginAction, authLoading, authError }) => {
-  const [mode, setMode] = useState<'login' | 'activate'>('login');
-  const [localEmail, setLocalEmail] = useState('');
-  const [localPassword, setLocalPassword] = useState('');
-
-  const [cohorts, setCohorts] = useState<Cohort[]>([]);
-  const [selectedCohortId, setSelectedCohortId] = useState('');
-  const [activationCode, setActivationCode] = useState('');
-  const [activationName, setActivationName] = useState('');
-  const [activationPassword, setActivationPassword] = useState('');
-  const [activationStep, setActivationStep] = useState<1 | 2>(1);
-  const [activationError, setActivationError] = useState('');
-  const [isValidating, setIsValidating] = useState(false);
+  // Modos: 'login' | 'register' | 'forgot'
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   
-  const [isMagicLink, setIsMagicLink] = useState(false);
+  // Form States
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
+  
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Detectar Link de Convite na URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const inviteCode = params.get('invite');
-    const cohortId = params.get('c');
-
-    if (inviteCode && cohortId) {
-        setMode('activate');
-        setSelectedCohortId(cohortId);
-        setActivationCode(inviteCode);
-        setIsMagicLink(true);
+    const code = params.get('invite');
+    if (code) {
+      setInviteCode(code);
+      setMode('register'); // Já abre no cadastro
     }
   }, []);
 
-  useEffect(() => {
-    if (mode === 'activate' && !isMagicLink) {
-      const fetchCohorts = async () => {
-        const { data } = await supabase.from('cohorts').select('*').order('name');
-        if (data) setCohorts(data);
-      };
-      fetchCohorts();
-    }
-  }, [mode, isMagicLink]);
+  // Limpar mensagens ao trocar de modo
+  useEffect(() => { setMessage(null); }, [mode]);
 
-  const verifyWhitelist = async () => {
-    setActivationError('');
-    setIsValidating(true);
-    
-    if (!selectedCohortId || !activationCode.trim()) {
-      setActivationError('Dados de acesso incompletos.');
-      setIsValidating(false);
-      return;
+  // AÇÃO: CADASTRAR NOVO AGENTE
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setMessage(null);
+
+    if (password.length < 6) {
+        setMessage({ type: 'error', text: 'A senha deve ter no mínimo 6 caracteres.' });
+        setIsLoading(false);
+        return;
     }
 
     try {
-      const { data, error } = await supabase
-        .from('whitelist')
-        .select('*')
-        .eq('cohort_id', selectedCohortId)
-        .eq('allowed_code', activationCode.trim().toUpperCase())
-        .is('used_at', null)
-        .single();
+        // 1. Validar Código de Convite (Whitelist)
+        const { data: whitelistData, error: whitelistError } = await supabase
+            .from('whitelist')
+            .select('*')
+            .eq('allowed_code', inviteCode.trim().toUpperCase())
+            .is('used_at', null)
+            .single();
 
-      if (error || !data) {
-        setActivationError('Código inválido ou já utilizado.');
-      } else {
-        setActivationStep(2);
-      }
-    } catch (err) { 
-      setActivationError('Erro ao verificar credencial.'); 
-    } finally { 
-      setIsValidating(false); 
-    }
-  };
+        if (whitelistError || !whitelistData) {
+            throw new Error('Código de convite inválido ou já utilizado.');
+        }
 
-  const handleActivation = async () => {
-    setActivationError('');
-    setIsValidating(true);
-    if (activationPassword.length < 6) { setActivationError('A senha deve ter no mínimo 6 caracteres.'); setIsValidating(false); return; }
-    if (activationName.length < 3) { setActivationError('Nome muito curto para certificado.'); setIsValidating(false); return; }
-
-    try {
-        // Correção: Força minúsculo e usa um domínio válido para passar na validação
-const fakeEmail = `${activationCode.trim().toLowerCase()}.${selectedCohortId.slice(0,4).toLowerCase()}@ativ.com`;
+        // 2. Buscar Validade da Turma
+        const { data: cohortData } = await supabase
+            .from('cohorts')
+            .select('validity_days')
+            .eq('id', whitelistData.cohort_id)
+            .single();
         
-        const { data: cohortData } = await supabase.from('cohorts').select('validity_days').eq('id', selectedCohortId).single();
         const days = cohortData?.validity_days || 365;
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + days);
 
+        // 3. Criar Usuário no Supabase Auth
         const { data: authData, error: authError } = await supabase.auth.signUp({
-            email: fakeEmail,
-            password: activationPassword,
-            options: { data: { full_name: activationName.toUpperCase() } }
+            email: email.trim(),
+            password: password,
+            options: { data: { full_name: fullName.toUpperCase() } }
         });
 
         if (authError) throw authError;
 
         if (authData.user) {
+            // 4. Atualizar Perfil
             await supabase.from('profiles').update({
-                full_name: activationName.toUpperCase(),
-                cohort_id: selectedCohortId,
-                ticket_code: activationCode.trim().toUpperCase(),
+                full_name: fullName.toUpperCase(),
+                cohort_id: whitelistData.cohort_id,
+                ticket_code: inviteCode.trim().toUpperCase(),
                 role: 'user',
                 expires_at: expirationDate.toISOString()
             }).eq('id', authData.user.id);
 
-            await supabase.from('whitelist').update({ used_at: new Date().toISOString() }).eq('cohort_id', selectedCohortId).eq('allowed_code', activationCode.trim().toUpperCase());
-            
-            window.history.replaceState(null, '', '/');
-            window.location.reload(); 
+            // 5. Queimar o Convite (Marcar como usado)
+            await supabase.from('whitelist')
+                .update({ used_at: new Date().toISOString() })
+                .eq('id', whitelistData.id);
+
+            // Sucesso!
+            window.location.reload();
         }
-    } catch (err: any) { setActivationError(err.message || 'Erro ao criar conta.'); setIsValidating(false); }
+
+    } catch (err: any) {
+        setMessage({ type: 'error', text: err.message || 'Erro ao realizar cadastro.' });
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  // AÇÃO: RECUPERAR SENHA
+  const handleForgotPassword = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setIsLoading(true);
+      setMessage(null);
+
+      try {
+          const { error } = await supabase.auth.resetPasswordForEmail(email, {
+              redirectTo: window.location.origin, // Redireciona para o próprio site
+          });
+          if (error) throw error;
+          setMessage({ type: 'success', text: 'Instruções enviadas para o seu e-mail.' });
+      } catch (err: any) {
+          setMessage({ type: 'error', text: 'Erro ao enviar e-mail. Verifique o endereço.' });
+      } finally {
+          setIsLoading(false);
+      }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-black font-sans">
-      <div className="w-full max-w-md bg-graphite-800/50 backdrop-blur-md border border-graphite-700 p-8 rounded-2xl shadow-2xl relative z-10">
+      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 pointer-events-none"></div>
+      
+      <div className="w-full max-w-md bg-graphite-800/80 backdrop-blur-md border border-graphite-700 p-8 rounded-2xl shadow-2xl relative z-10">
         
-        <div className="flex flex-col items-center mb-6">
-          <img 
-            src="/logo_ativ.png" 
-            alt="ATIV BRASIL" 
-            className="w-24 h-24 object-contain mb-4 drop-shadow-[0_0_10px_rgba(245,158,11,0.3)]" 
-          />
-          <h1 className="text-2xl font-bold text-text-primary uppercase tracking-tighter text-center leading-none">
-            {mode === 'login' ? 'ATIV' : 'NOVO AGENTE'}
+        {/* HEADER */}
+        <div className="flex flex-col items-center mb-8">
+          <img src="/logo_ativ.png" alt="ATIV" className="w-20 h-20 object-contain mb-4 drop-shadow-[0_0_15px_rgba(245,158,11,0.4)]" />
+          <h1 className="text-2xl font-bold text-white uppercase tracking-tighter">
+            {mode === 'login' ? 'Acesso Operacional' : mode === 'register' ? 'Alistamento' : 'Recuperação'}
           </h1>
-          <p className="text-xs text-text-muted italic mt-1 uppercase tracking-widest">
-            {mode === 'login' ? 'Operação de Inteligência Digital' : 'Ativação de Credencial'}
-          </p>
         </div>
 
+        {/* FEEDBACK MENSAGENS */}
+        {message && (
+            <div className={`mb-6 p-3 rounded text-xs font-bold uppercase flex items-center gap-2 ${message.type === 'error' ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-green-500/10 text-green-500 border border-green-500/20'}`}>
+                {message.type === 'error' ? <AlertCircle size={14}/> : <CheckCircle size={14}/>}
+                {message.text}
+            </div>
+        )}
+        
+        {authError && !message && (
+             <div className="mb-6 p-3 rounded text-xs font-bold uppercase flex items-center gap-2 bg-red-500/10 text-red-500 border border-red-500/20">
+                <AlertCircle size={14}/> {authError}
+            </div>
+        )}
+
+        {/* === FORM LOGIN === */}
         {mode === 'login' && (
-          <form onSubmit={(e) => { e.preventDefault(); onLoginAction(localEmail, localPassword); }} className="space-y-4 animate-fade-in">
-            <input type="text" required value={localEmail} onChange={(e) => setLocalEmail(e.target.value)} className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-text-primary outline-none focus:border-amber-500 font-bold" placeholder="USUÁRIO / EMAIL" />
-            <input type="password" required value={localPassword} onChange={(e) => setLocalPassword(e.target.value)} className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-text-primary outline-none focus:border-amber-500" placeholder="SENHA DE ACESSO" />
-            
-            {authError && (
-                <div className="bg-red-500/10 border border-red-500/20 p-2 rounded text-red-500 text-[10px] text-center uppercase font-bold flex items-center justify-center gap-2">
-                    <AlertCircle size={12} /> {authError}
+            <form onSubmit={(e) => { e.preventDefault(); onLoginAction(email, password); }} className="space-y-4 animate-fade-in">
+                <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-text-muted uppercase flex items-center gap-1"><Mail size={10}/> E-mail</label>
+                    <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black/50 border border-graphite-600 rounded-lg p-3 text-white focus:border-amber-500 outline-none" placeholder="seu@email.com" />
                 </div>
-            )}
-
-            <Button type="submit" fullWidth disabled={authLoading}>
-                {authLoading ? <><Loader2 className="animate-spin mr-2" size={16}/> AUTENTICANDO...</> : 'ACESSAR SISTEMA'}
-            </Button>
-
-            <div className="pt-4 border-t border-graphite-700 text-center">
-                <button type="button" onClick={() => setMode('activate')} className="text-xs text-text-muted hover:text-amber-500 font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 w-full">
-                    <UserPlus size={14} /> Primeiro Acesso? Ativar Conta
-                </button>
-            </div>
-          </form>
+                <div className="space-y-2">
+                    <div className="flex justify-between">
+                        <label className="text-[10px] font-bold text-text-muted uppercase flex items-center gap-1"><Lock size={10}/> Senha</label>
+                        <button type="button" onClick={() => setMode('forgot')} className="text-[10px] font-bold text-amber-500 hover:text-white uppercase">Esqueci a senha</button>
+                    </div>
+                    <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black/50 border border-graphite-600 rounded-lg p-3 text-white focus:border-amber-500 outline-none" placeholder="••••••••" />
+                </div>
+                <Button type="submit" fullWidth disabled={authLoading}>{authLoading ? <Loader2 className="animate-spin" /> : 'ENTRAR NO SISTEMA'}</Button>
+                
+                <div className="pt-4 border-t border-graphite-700 mt-4 text-center">
+                    <span className="text-xs text-text-muted">Ainda não tem conta? </span>
+                    <button type="button" onClick={() => setMode('register')} className="text-xs font-bold text-amber-500 hover:text-white uppercase ml-1">Criar Conta</button>
+                </div>
+            </form>
         )}
 
-        {mode === 'activate' && (
-            <div className="animate-fade-in space-y-4">
-                {activationStep === 1 ? (
-                    <>
-                        {isMagicLink ? (
-                             <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded text-amber-500 text-xs font-bold uppercase text-center mb-4">
-                                Você está ativando um acesso exclusivo.<br/>Confirme o código abaixo.
-                             </div>
-                        ) : (
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-amber-500 uppercase tracking-wider ml-1">1. Selecione sua Turma</label>
-                                <select value={selectedCohortId} onChange={(e) => setSelectedCohortId(e.target.value)} className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500 transition-colors font-bold uppercase">
-                                    <option value="">SELECIONE...</option>
-                                    {cohorts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                            </div>
-                        )}
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-amber-500 uppercase tracking-wider ml-1">Código de Acesso</label>
-                            <input type="text" value={activationCode} onChange={(e) => setActivationCode(e.target.value)} className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500 transition-colors font-bold uppercase tracking-widest" placeholder="CÓDIGO ÚNICO" disabled={isMagicLink} />
-                        </div>
-                        
-                        {activationError && <div className="bg-red-500/10 border border-red-500/20 p-2 rounded text-red-500 text-[10px] text-center uppercase font-bold flex items-center justify-center gap-2"><AlertCircle size={12} /> {activationError}</div>}
-                        <Button onClick={verifyWhitelist} fullWidth disabled={isValidating}>{isValidating ? <><Loader2 className="animate-spin mr-2" size={16}/> VERIFICANDO...</> : 'VALIDAR ACESSO'}</Button>
-                    </>
-                ) : (
-                    <>
-                        <div className="bg-green-500/10 border border-green-500/20 p-3 rounded text-green-500 text-xs font-bold uppercase text-center mb-2 flex items-center justify-center gap-2"><CheckCircle size={16} /> Acesso Liberado</div>
-                        
-                        {/* --- CORREÇÃO AQUI: NOME COMPLETO PARA CERTIFICADO --- */}
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-amber-500 uppercase tracking-wider ml-1">Nome Completo (Para Certificado)</label>
-                            <input 
-                                type="text" 
-                                value={activationName} 
-                                onChange={(e) => setActivationName(e.target.value)} 
-                                className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500 transition-colors font-bold uppercase" 
-                                placeholder="EX: JOÃO DA SILVA" 
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-amber-500 uppercase tracking-wider ml-1">Crie sua Senha</label>
-                            <input type="password" value={activationPassword} onChange={(e) => setActivationPassword(e.target.value)} className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500 transition-colors" placeholder="Mínimo 6 caracteres" />
-                        </div>
-                        
-                        {activationError && <div className="bg-red-500/10 border border-red-500/20 p-2 rounded text-red-500 text-[10px] text-center uppercase font-bold flex items-center justify-center gap-2"><AlertCircle size={12} /> {activationError}</div>}
-                        <Button onClick={handleActivation} fullWidth disabled={isValidating}>{isValidating ? <><Loader2 className="animate-spin mr-2" size={16}/> REGISTRAR E ENTRAR...</> : 'CONFIRMAR CADASTRO'}</Button>
-                    </>
-                )}
-                <div className="pt-4 border-t border-graphite-700 text-center">
-                    <button type="button" onClick={() => { setMode('login'); setActivationStep(1); setActivationError(''); setSelectedCohortId(''); setActivationCode(''); setIsMagicLink(false); window.history.replaceState(null, '', '/'); }} className="text-xs text-text-muted hover:text-white font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 w-full">
-                        <ArrowLeft size={14} /> Voltar ao Login
-                    </button>
+        {/* === FORM CADASTRO === */}
+        {mode === 'register' && (
+            <form onSubmit={handleRegister} className="space-y-4 animate-fade-in">
+                <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded mb-2">
+                    <label className="text-[10px] font-bold text-amber-500 uppercase flex items-center gap-1 mb-1"><Key size={10}/> Código de Convite</label>
+                    <input type="text" required value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} className="w-full bg-transparent border-none p-0 text-white font-mono font-bold uppercase focus:ring-0 placeholder:text-gray-600" placeholder="ATIV-XXXXXX" />
                 </div>
-            </div>
+
+                <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-text-muted uppercase">Nome Completo</label>
+                    <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full bg-black/50 border border-graphite-600 rounded-lg p-3 text-white focus:border-amber-500 outline-none uppercase" placeholder="JOÃO DA SILVA" />
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-text-muted uppercase">Seu Melhor E-mail</label>
+                    <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black/50 border border-graphite-600 rounded-lg p-3 text-white focus:border-amber-500 outline-none" placeholder="seu@email.com" />
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-text-muted uppercase">Defina sua Senha</label>
+                    <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black/50 border border-graphite-600 rounded-lg p-3 text-white focus:border-amber-500 outline-none" placeholder="Mínimo 6 caracteres" />
+                </div>
+
+                <Button type="submit" fullWidth disabled={isLoading}>{isLoading ? <Loader2 className="animate-spin" /> : 'CONFIRMAR MATRÍCULA'}</Button>
+
+                <div className="text-center pt-2">
+                    <button type="button" onClick={() => setMode('login')} className="text-xs font-bold text-text-muted hover:text-white uppercase flex items-center justify-center gap-1 w-full"><ArrowLeft size={12}/> Voltar ao Login</button>
+                </div>
+            </form>
         )}
+
+        {/* === FORM RECUPERAÇÃO === */}
+        {mode === 'forgot' && (
+            <form onSubmit={handleForgotPassword} className="space-y-4 animate-fade-in">
+                <p className="text-xs text-text-secondary mb-4">Digite seu e-mail cadastrado. Enviaremos um link para você redefinir sua senha.</p>
+                <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-text-muted uppercase">E-mail</label>
+                    <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black/50 border border-graphite-600 rounded-lg p-3 text-white focus:border-amber-500 outline-none" placeholder="seu@email.com" />
+                </div>
+                <Button type="submit" fullWidth disabled={isLoading}>{isLoading ? <Loader2 className="animate-spin" /> : 'ENVIAR LINK DE RECUPERAÇÃO'}</Button>
+                <div className="text-center pt-2">
+                    <button type="button" onClick={() => setMode('login')} className="text-xs font-bold text-text-muted hover:text-white uppercase flex items-center justify-center gap-1 w-full"><ArrowLeft size={12}/> Voltar ao Login</button>
+                </div>
+            </form>
+        )}
+
+      </div>
+      <div className="absolute bottom-4 text-center w-full pointer-events-none">
+         <p className="text-[10px] text-graphite-600 uppercase font-mono tracking-[0.2em]">ATIV Brasil System • Secure Connection</p>
       </div>
     </div>
   );
@@ -259,62 +266,248 @@ const App: React.FC = () => {
   const [isProfileIncomplete, setIsProfileIncomplete] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(1);
   const [savingProfile, setSavingProfile] = useState(false);
-  const [profileForm, setProfileForm] = useState({ fullName: '', whatsapp: '', occupation: 'Segurança Privada', experience: 'Iniciante (0-2 anos)', goal: 'Especialização Técnica' });
+  
+  const [profileForm, setProfileForm] = useState({
+    fullName: '',
+    whatsapp: '',
+    occupation: 'Segurança Privada',
+    experience: 'Iniciante (0-2 anos)',
+    goal: 'Especialização Técnica'
+  });
 
-  // Trilhas & Progresso
+  // Novos States de Navegação
   const [selectedTrackId, setSelectedTrackId] = useState<TrackId | null>(null);
   const [trackSearchTerm, setTrackSearchTerm] = useState('');
+  
+  // State de Progresso (Sincronização Local e Remota)
   const [progress, setProgress] = useState<UserProgress>({ opened: {} });
   const [completedBookIds, setCompletedBookIds] = useState<string[]>([]);
 
-  // Helpers
-  const loadLocalProgress = (userId: string) => { try { const stored = localStorage.getItem(`ativ_progress_${userId}`); if (stored) setProgress(JSON.parse(stored)); else setProgress({ opened: {} }); } catch { setProgress({ opened: {} }); } };
-  const markBookOpened = (bookId: string) => { if (!user) return; const now = new Date().toISOString(); const newProgress = { ...progress }; if (!newProgress.opened[bookId]) newProgress.opened[bookId] = { firstOpenedAt: now, lastOpenedAt: now, count: 1 }; else { newProgress.opened[bookId].lastOpenedAt = now; newProgress.opened[bookId].count += 1; } setProgress(newProgress); localStorage.setItem(`ativ_progress_${user.id}`, JSON.stringify(newProgress)); };
-  const getBookStatus = (bookId: string): 'cursando' | 'certificado' | undefined => { if (completedBookIds.includes(bookId)) return 'certificado'; if (progress.opened[bookId]) return 'cursando'; return undefined; };
-
-  useEffect(() => { try { const params = new URLSearchParams(window.location.search); const redirect = params.get('redirect'); if (redirect) window.history.replaceState(null, '', redirect); } catch { } }, []);
-  const isValidationRoute = typeof window !== 'undefined' && window.location.pathname.replace(/\/+$/, '').endsWith('/validar');
-
-  const fetchRealContent = async () => { const { data, error } = await supabase.from('ebooks').select('*').eq('status', 'published').order('created_at', { ascending: false }); if (!error && data) setBooks(data.map((b: any) => ({ id: b.id, title: b.title, description: b.description, category: b.category, coverUrl: b.cover_url, tags: b.tags || [], content: b.content_html, readTime: b.read_time, level: b.level, quiz_data: b.quiz_data, technical_skills: b.technical_skills, }))); };
-  
-  const loadProfile = async (authUser: any) => { 
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', authUser.id).single<Profile>(); 
-      if (error || !data) { setAuthError('Perfil não autorizado.'); await supabase.auth.signOut(); return; } 
-      
-      const { data: exams } = await supabase.from('user_exams').select('ebook_id').eq('user_id', authUser.id).eq('status', 'approved'); 
-      if (exams) setCompletedBookIds(exams.map(e => e.ebook_id)); 
-      
-      const isIncomplete = !data.full_name || !data.whatsapp || !data.occupation; 
-      if (isIncomplete) { setIsProfileIncomplete(true); setProfileForm(prev => ({ ...prev, fullName: data.full_name || '', whatsapp: data.whatsapp || '' })); } else setIsProfileIncomplete(false); 
-      
-      setUser({ id: data.id, name: (data.full_name || data.email.split('@')[0]), email: data.email, role: data.role } as User); 
-      loadLocalProgress(data.id); 
-      await fetchRealContent(); 
-      setLoading(false); 
+  // === HELPERS DE PROGRESSO ===
+  const loadLocalProgress = (userId: string) => {
+    try {
+      const stored = localStorage.getItem(`ativ_progress_${userId}`);
+      if (stored) {
+        setProgress(JSON.parse(stored));
+      } else {
+        setProgress({ opened: {} });
+      }
+    } catch { 
+      setProgress({ opened: {} });
+    }
   };
 
-  const handleSaveProfile = async (e: React.FormEvent) => { 
-      e.preventDefault(); 
-      if (!user) return; 
-      if (onboardingStep === 1) { if (profileForm.fullName.length < 3 || profileForm.whatsapp.length < 8) { alert("Preencha corretamente."); return; } setOnboardingStep(2); return; } 
-      setSavingProfile(true); 
-      const { error } = await supabase.from('profiles').update({ full_name: profileForm.fullName.trim().toUpperCase(), whatsapp: profileForm.whatsapp.replace(/\D/g, ''), occupation: profileForm.occupation, experience_level: profileForm.experience, main_goal: profileForm.goal }).eq('id', user.id); 
-      if (!error) { setUser({ ...user, name: profileForm.fullName.trim().toUpperCase() }); setIsProfileIncomplete(false); } else alert("Erro ao salvar."); setSavingProfile(false); 
+  const markBookOpened = (bookId: string) => {
+    if (!user) return;
+    
+    const now = new Date().toISOString();
+    const newProgress = { ...progress };
+    
+    if (!newProgress.opened[bookId]) {
+      newProgress.opened[bookId] = {
+        firstOpenedAt: now,
+        lastOpenedAt: now,
+        count: 1
+      };
+    } else {
+      newProgress.opened[bookId].lastOpenedAt = now;
+      newProgress.opened[bookId].count += 1;
+    }
+
+    setProgress(newProgress);
+    localStorage.setItem(`ativ_progress_${user.id}`, JSON.stringify(newProgress));
   };
 
-  useEffect(() => { supabase.auth.getSession().then(({ data }) => { if (data.session?.user) loadProfile(data.session.user); else setLoading(false); }); const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => { if (session?.user) loadProfile(session.user); else { setUser(null); setView('home'); setLoading(false); } }); return () => listener.subscription.unsubscribe(); }, []);
-  
-  const dashboardData = useMemo(() => { 
-      const openedCount = Object.keys(progress.opened).length; 
-      const booksByTrack = groupBooksByTrack(books); 
-      const recommendations = books.filter(b => !completedBookIds.includes(b.id)).slice(0, 6); 
-      const myHistory = books.filter(b => progress.opened[b.id]); 
-      return { openedCount, booksByTrack, recommendations, myHistory }; 
+  // Determina visualmente a insígnia do manual no card
+  const getBookStatus = (bookId: string): 'cursando' | 'certificado' | undefined => {
+    if (completedBookIds.includes(bookId)) return 'certificado'; 
+    if (progress.opened[bookId]) return 'cursando';
+    return undefined;
+  };
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get('redirect');
+      if (redirect) {
+        window.history.replaceState(null, '', redirect);
+      }
+    } catch { }
+  }, []);
+
+  const isValidationRoute =
+    typeof window !== 'undefined' &&
+    window.location.pathname.replace(/\/+$/, '').endsWith('/validar');
+
+  const fetchRealContent = async () => {
+    const { data, error } = await supabase
+      .from('ebooks')
+      .select('*')
+      .eq('status', 'published')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setBooks(
+        data.map((b: any) => ({
+          id: b.id,
+          title: b.title,
+          description: b.description,
+          category: b.category,
+          coverUrl: b.cover_url,
+          tags: b.tags || [],
+          content: b.content_html,
+          readTime: b.read_time,
+          level: b.level,
+          quiz_data: b.quiz_data,
+          technical_skills: b.technical_skills,
+        }))
+      );
+    }
+  };
+
+  const loadProfile = async (authUser: any) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authUser.id)
+      .single<Profile>();
+
+    if (error || !data) {
+      setAuthError('Perfil não autorizado.');
+      await supabase.auth.signOut();
+      return;
+    }
+
+    // Busca Certificados Aprovados (Inteligência Central)
+    const { data: exams } = await supabase
+      .from('user_exams')
+      .select('ebook_id')
+      .eq('user_id', authUser.id)
+      .eq('status', 'approved');
+
+    if (exams) {
+      setCompletedBookIds(exams.map(e => e.ebook_id));
+    }
+
+    const isIncomplete = !data.full_name || !data.whatsapp || !data.occupation;
+
+    if (isIncomplete) {
+      setIsProfileIncomplete(true);
+      setProfileForm(prev => ({
+        ...prev,
+        fullName: data.full_name || '',
+        whatsapp: data.whatsapp || ''
+      }));
+    } else {
+      setIsProfileIncomplete(false);
+    }
+
+    setUser({
+      id: data.id,
+      name: (data.full_name || data.email.split('@')[0]),
+      email: data.email,
+      role: data.role
+    } as User);
+
+    loadLocalProgress(data.id);
+    await fetchRealContent();
+    setLoading(false);
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    if (onboardingStep === 1) {
+      if (profileForm.fullName.length < 3 || profileForm.whatsapp.length < 8) {
+        alert("Preencha corretamente sua identificação e contato.");
+        return;
+      }
+      setOnboardingStep(2);
+      return;
+    }
+
+    setSavingProfile(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        full_name: profileForm.fullName.trim().toUpperCase(),
+        whatsapp: profileForm.whatsapp.replace(/\D/g, ''),
+        occupation: profileForm.occupation,
+        experience_level: profileForm.experience,
+        main_goal: profileForm.goal
+      })
+      .eq('id', user.id);
+
+    if (!error) {
+      setUser({ ...user, name: profileForm.fullName.trim().toUpperCase() });
+      setIsProfileIncomplete(false);
+    } else {
+      alert("Erro ao salvar perfil. Tente novamente.");
+    }
+    setSavingProfile(false);
+  };
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.user) loadProfile(data.session.user);
+      else setLoading(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) loadProfile(session.user);
+      else {
+        setUser(null);
+        setView('home');
+        setLoading(false);
+      }
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  // === DADOS COMPUTADOS PARA A OPERAÇÃO ===
+  const dashboardData = useMemo(() => {
+    const openedCount = Object.keys(progress.opened).length;
+    const booksByTrack = groupBooksByTrack(books);
+    
+    // Sugestões: Manuais que o agente ainda não conquistou (Certificado)
+    const recommendations = books
+      .filter(b => !completedBookIds.includes(b.id))
+      .slice(0, 6);
+
+    // Filtra apenas manuais que o agente já iniciou (Histórico local)
+    const myHistory = books.filter(b => progress.opened[b.id]);
+
+    return { openedCount, booksByTrack, recommendations, myHistory };
   }, [books, progress, completedBookIds]);
 
-  if (loading && !isValidationRoute) return <div className="h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-amber-500" size={40} /></div>;
-  if (isValidationRoute) return <ValidateCertificate />;
-  if (!user) return <LoginView onLoginAction={async (e, p) => { setAuthError(null); const { error } = await supabase.auth.signInWithPassword({ email: e, password: p }); if (error) setAuthError(error.message); }} authLoading={false} authError={authError} />;
+  // === RENDERIZAÇÃO ===
+  if (loading && !isValidationRoute) {
+    return (
+      <div className="h-screen bg-black flex items-center justify-center">
+        <Loader2 className="animate-spin text-amber-500" size={40} />
+      </div>
+    );
+  }
+
+  if (isValidationRoute) {
+    return <ValidateCertificate />;
+  }
+
+  if (!user) {
+    return (
+      <LoginView
+        onLoginAction={async (e, p) => {
+          setAuthError(null);
+          const { error } = await supabase.auth.signInWithPassword({ email: e, password: p });
+          if (error) setAuthError(error.message);
+        }}
+        authLoading={false}
+        authError={authError}
+      />
+    );
+  }
 
   return (
     <div className="bg-black min-h-screen text-text-primary relative pb-20">
@@ -323,11 +516,68 @@ const App: React.FC = () => {
       {isProfileIncomplete && (
         <div className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="w-full max-w-md bg-graphite-800 border-2 border-amber-500 p-8 rounded-2xl shadow-[0_0_50px_rgba(245,158,11,0.2)] animate-fade-in-up">
-            <div className="flex flex-col items-center text-center mb-6"><div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mb-4"><UserCheck size={32} className="text-amber-500" /></div><h2 className="text-xl font-bold font-display text-white uppercase tracking-wider">Credenciamento Oficial</h2><div className="flex gap-2 mt-4 mb-2"><div className={`h-1 w-12 rounded-full ${onboardingStep === 1 ? 'bg-amber-500' : 'bg-graphite-600'}`}></div><div className={`h-1 w-12 rounded-full ${onboardingStep === 2 ? 'bg-amber-500' : 'bg-graphite-600'}`}></div></div><p className="text-text-secondary text-xs mt-2">{onboardingStep === 1 ? 'Identificação & Contato' : 'Perfil Operacional'}</p></div>
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mb-4">
+                <UserCheck size={32} className="text-amber-500" />
+              </div>
+              <h2 className="text-xl font-bold font-display text-white uppercase tracking-wider">Credenciamento Oficial</h2>
+              <div className="flex gap-2 mt-4 mb-2">
+                <div className={`h-1 w-12 rounded-full ${onboardingStep === 1 ? 'bg-amber-500' : 'bg-graphite-600'}`}></div>
+                <div className={`h-1 w-12 rounded-full ${onboardingStep === 2 ? 'bg-amber-500' : 'bg-graphite-600'}`}></div>
+              </div>
+              <p className="text-text-secondary text-xs mt-2">{onboardingStep === 1 ? 'Identificação & Contato' : 'Perfil Operacional'}</p>
+            </div>
+            
             <form onSubmit={handleSaveProfile} className="space-y-4">
-              {onboardingStep === 1 && (<div className="space-y-4 animate-fade-in"><div><label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">Este nome será gravado nos certificados</label><input autoFocus required value={profileForm.fullName} onChange={(e) => setProfileForm({...profileForm, fullName: e.target.value})} placeholder="NOME COMPLETO" className="w-full bg-graphite-800 border border-graphite-600 rounded-lg p-4 text-white font-bold outline-none focus:border-amber-500 uppercase placeholder:text-gray-500" /></div><div><label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">Para receber promoções de treinamentos</label><input type="tel" required value={profileForm.whatsapp} onChange={(e) => setProfileForm({...profileForm, whatsapp: e.target.value})} placeholder="WhatsApp" className="w-full bg-graphite-800 border border-graphite-600 rounded-lg p-4 text-white font-bold outline-none focus:border-amber-500 placeholder:text-gray-500" /></div></div>)}
-              {onboardingStep === 2 && (<div className="space-y-4 animate-fade-in"><div><label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">Área de Atuação</label><select value={profileForm.occupation} onChange={(e) => setProfileForm({...profileForm, occupation: e.target.value})} className="w-full bg-graphite-800 border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500"><option>Segurança Privada</option><option>Segurança Pública</option><option>Forças Armadas</option><option>Civil / Entusiasta</option></select></div><div><label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">Experiência</label><select value={profileForm.experience} onChange={(e) => setProfileForm({...profileForm, experience: e.target.value})} className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500"><option>Iniciante (0-2 anos)</option><option>Intermediário (2-5 anos)</option><option>Veterano (5-10 anos)</option><option>Elite (+10 anos)</option></select></div><div><label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">Objetivo</label><select value={profileForm.goal} onChange={(e) => setProfileForm({...profileForm, goal: e.target.value})} className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500"><option>Especialização Técnica</option><option>Promoção na Carreira</option><option>Mindset e Comportamento</option></select></div></div>)}
-              <button type="submit" disabled={savingProfile} className="w-full bg-amber-500 hover:bg-amber-600 text-black font-black uppercase tracking-widest py-4 rounded-lg transition-all flex items-center justify-center gap-2 mt-4">{savingProfile ? <Loader2 className="animate-spin" /> : onboardingStep === 1 ? <>Próxima Etapa <ChevronRight size={18} /></> : <><Save size={18} /> Confirmar</>}</button>
+              {onboardingStep === 1 && (
+                <div className="space-y-4 animate-fade-in">
+                  <div>
+                    <label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">
+                      Este nome será gravado nos certificados
+                    </label>
+                    <input autoFocus required value={profileForm.fullName} onChange={(e) => setProfileForm({...profileForm, fullName: e.target.value})} placeholder="NOME COMPLETO" className="w-full bg-graphite-800 border border-graphite-600 rounded-lg p-4 text-white font-bold outline-none focus:border-amber-500 uppercase placeholder:text-gray-500" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">
+                      Para receber promoções de treinamentos
+                    </label>
+                    <input type="tel" required value={profileForm.whatsapp} onChange={(e) => setProfileForm({...profileForm, whatsapp: e.target.value})} placeholder="WhatsApp" className="w-full bg-graphite-800 border border-graphite-600 rounded-lg p-4 text-white font-bold outline-none focus:border-amber-500 placeholder:text-gray-500" />
+                  </div>
+                </div>
+              )}
+              {onboardingStep === 2 && (
+                <div className="space-y-4 animate-fade-in">
+                  <div>
+                    <label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">Área de Atuação</label>
+                    <select value={profileForm.occupation} onChange={(e) => setProfileForm({...profileForm, occupation: e.target.value})} className="w-full bg-graphite-800 border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500">
+                      <option>Segurança Privada</option>
+                      <option>Segurança Pública</option>
+                      <option>Forças Armadas</option>
+                      <option>Civil / Entusiasta</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">Experiência</label>
+                    <select value={profileForm.experience} onChange={(e) => setProfileForm({...profileForm, experience: e.target.value})} className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500">
+                      <option>Iniciante (0-2 anos)</option>
+                      <option>Intermediário (2-5 anos)</option>
+                      <option>Veterano (5-10 anos)</option>
+                      <option>Elite (+10 anos)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-amber-500 uppercase mb-2">Objetivo</label>
+                    <select value={profileForm.goal} onChange={(e) => setProfileForm({...profileForm, goal: e.target.value})} className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500">
+                      <option>Especialização Técnica</option>
+                      <option>Promoção na Carreira</option>
+                      <option>Mindset e Comportamento</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+              <button type="submit" disabled={savingProfile} className="w-full bg-amber-500 hover:bg-amber-600 text-black font-black uppercase tracking-widest py-4 rounded-lg transition-all flex items-center justify-center gap-2 mt-4">
+                {savingProfile ? <Loader2 className="animate-spin" /> : onboardingStep === 1 ? <>Próxima Etapa <ChevronRight size={18} /></> : <><Save size={18} /> Confirmar</>}
+              </button>
             </form>
           </div>
         </div>
@@ -430,7 +680,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* === VIEW: TRACKS === */}
+      {/* === VIEW: TRACKS (LISTA) === */}
       {view === 'tracks' && (
         <div className="pt-24 px-6 max-w-3xl mx-auto space-y-6 animate-fade-in pb-10">
           <div className="flex items-center gap-4 mb-8">
