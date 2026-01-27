@@ -110,9 +110,16 @@ const LoginView: React.FC<{
         .eq('id', whitelistData.cohort_id)
         .single();
 
-      const days = cohortData?.validity_days || 365;
-      const expirationDate = new Date();
-      expirationDate.setDate(expirationDate.getDate() + days);
+        const days = cohortData?.validity_days || 365;
+      
+        // LÓGICA CORRIGIDA: Se for mais de 30 mil dias, consideramos Vitalício (Null)
+        let finalExpiration: string | null = null; 
+  
+        if (days < 30000) { 
+          const expirationDate = new Date();
+          expirationDate.setDate(expirationDate.getDate() + days);
+          finalExpiration = expirationDate.toISOString();
+        }
 
       // 3. ETAPA 1: Criar o Login (Auth)
       // Enviamos APENAS email e senha. O "Porteiro Simples" (SQL) vai deixar entrar sem erro.
@@ -135,7 +142,7 @@ const LoginView: React.FC<{
             ticket_code: inviteCode.trim().toUpperCase(),
             role: 'user',
             is_active: true,
-            expires_at: expirationDate.toISOString(),
+            expires_at: finalExpiration,
           })
           .eq('id', authData.user.id);
 
