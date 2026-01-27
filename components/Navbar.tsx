@@ -21,24 +21,24 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, onLogout, isLoggedIn
         <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
           
           {/* Logo Section - Heráldica Oficial sem redundância */}
-<div 
-  className="flex items-center gap-3 cursor-pointer group"
-  onClick={() => onNavigate('home')}
->
-  <div className="flex items-center justify-center transition-transform group-hover:scale-105 duration-300">
-    <img 
-      src="/logo_ativ.png" 
-      alt="ATIV BRASIL" 
-      className="h-10 md:h-12 w-auto object-contain drop-shadow-[0_0_8px_rgba(245,158,11,0.2)]" 
-    />
-  </div>
-  <div className="flex flex-col justify-center">
-    <span className="font-display font-bold text-lg md:text-2xl tracking-tighter text-text-primary leading-none">
-      ARSENAL
-    </span>
-    {/* O nome ATIV BRASIL foi removido aqui pois já consta na logo oficial */}
-  </div>
-</div>
+          <div 
+            className="flex items-center gap-3 cursor-pointer group"
+            onClick={() => onNavigate('home')}
+          >
+            <div className="flex items-center justify-center transition-transform group-hover:scale-105 duration-300">
+              <img 
+                src="/logo_ativ.png" 
+                alt="ATIV BRASIL" 
+                className="h-10 md:h-12 w-auto object-contain drop-shadow-[0_0_8px_rgba(245,158,11,0.2)]" 
+              />
+            </div>
+            <div className="flex flex-col justify-center">
+              <span className="font-display font-bold text-lg md:text-2xl tracking-tighter text-text-primary leading-none uppercase">
+                ARSENAL
+              </span>
+              {/* O nome ATIV BRASIL foi removido aqui pois já consta na logo oficial */}
+            </div>
+          </div>
 
           {/* Desktop Navigation */}
           {isLoggedIn && (

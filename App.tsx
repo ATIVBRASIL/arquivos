@@ -25,8 +25,7 @@ type Profile = {
   experience_level: string | null;
 };
 
-// === LOGIN COMPONENT - ATUALIZADO COM LOGO OFICIAL ===
-// === LOGIN COMPONENT - CORRIGIDO E LIMPO ===
+// === LOGIN COMPONENT - CORRIGIDO PARA ARSENAL ===
 const LoginView: React.FC<{
   onLoginAction: (e: string, p: string) => Promise<void>;
   authLoading: boolean;
@@ -36,17 +35,17 @@ const LoginView: React.FC<{
   const [localPassword, setLocalPassword] = useState('');
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-black">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-black font-sans">
       <div className="w-full max-w-md bg-graphite-800/50 backdrop-blur-md border border-graphite-700 p-8 rounded-2xl shadow-2xl">
         <div className="flex flex-col items-center mb-6">
-          {/* Certifique-se de que a extensão (.png ou .jpg) condiz com o arquivo na pasta public */}
+          {/* Heráldica Oficial do Arsenal */}
           <img 
             src="/logo_ativ.png" 
             alt="ATIV BRASIL" 
             className="w-24 h-24 object-contain mb-4 drop-shadow-[0_0_10px_rgba(245,158,11,0.3)]" 
           />
           <h1 className="text-2xl font-bold text-text-primary uppercase tracking-tighter">
-            Arquivos ATIV
+            ARSENAL ATIV
           </h1>
           <p className="text-xs text-text-muted italic">Operação de Inteligência Digital</p>
         </div>
