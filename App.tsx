@@ -44,13 +44,12 @@ type Profile = {
   expires_at: string | null;
 };
 
-// === LOGIN COMPONENT (PIVOTADO: EMAIL & SENHA + CONVITE) ===
+// === LOGIN COMPONENT ===
 const LoginView: React.FC<{
   onLoginAction: (e: string, p: string) => Promise<void>;
   authLoading: boolean;
   authError: string | null;
 }> = ({ onLoginAction, authLoading, authError }) => {
-  // Modos: 'login' | 'register' | 'forgot'
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -77,7 +76,7 @@ const LoginView: React.FC<{
     setMessage(null);
   }, [mode]);
 
-  // AÇÃO: CADASTRAR NOVO AGENTE
+  // === AÇÃO DE CADASTRO SEGURA (2 ETAPAS - CORREÇÃO CRÍTICA) ===
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -91,6 +90,7 @@ const LoginView: React.FC<{
 
     try {
       // 1. Validar Código de Convite (Whitelist)
+      // Isso garante que só entra quem tem convite VÁLIDO.
       const { data: whitelistData, error: whitelistError } = await supabase
         .from('whitelist')
         .select('*')
@@ -102,68 +102,59 @@ const LoginView: React.FC<{
         throw new Error('Código de convite inválido ou já utilizado.');
       }
 
-      // 2. Buscar Validade da Turma
-      const { data: cohortData, error: cohortErr } = await supabase
+      // 2. Calcular a Data de Validade (No Front-end)
+      // O App decide a data baseado na turma do convite.
+      const { data: cohortData } = await supabase
         .from('cohorts')
         .select('validity_days')
         .eq('id', whitelistData.cohort_id)
         .single();
 
-      if (cohortErr) {
-        // não travar por isso (mantém fallback), mas deixa logável
-        console.error('Erro ao buscar cohort validity_days:', cohortErr);
-      }
-
       const days = cohortData?.validity_days || 365;
       const expirationDate = new Date();
       expirationDate.setDate(expirationDate.getDate() + days);
 
-      // 3. Criar Usuário no Supabase Auth
+      // 3. ETAPA 1: Criar o Login (Auth)
+      // Enviamos APENAS email e senha. O "Porteiro Simples" (SQL) vai deixar entrar sem erro.
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
-        password,
-        options: { data: { full_name: fullName.toUpperCase() } },
+        password: password
+        // IMPORTANTE: Não enviamos 'options.data' aqui para não conflitar com o Trigger SQL
       });
 
       if (authError) throw authError;
 
       if (authData.user) {
-        // 4. Gravar Perfil (UPSERT: cria se não existir)
-        const profilePayload = {
-          id: authData.user.id,
-          email: (authData.user.email || email.trim()).toLowerCase(),
-          full_name: fullName.toUpperCase(),
-          cohort_id: whitelistData.cohort_id,
-          ticket_code: inviteCode.trim().toUpperCase(),
-          role: 'user',
-          is_active: true,
-          expires_at: expirationDate.toISOString(),
-        };
-        
-
-        const { error: profileErr } = await supabase
+        // 4. ETAPA 2: Atualizar o Perfil (Enriquecimento)
+        // Agora que o usuário existe (criado pelo SQL ou Auth), fazemos o UPDATE na linha existente.
+        const { error: updateError } = await supabase
           .from('profiles')
-          .upsert(profilePayload, { onConflict: 'id' });
+          .update({
+            full_name: fullName.toUpperCase(),
+            cohort_id: whitelistData.cohort_id,
+            ticket_code: inviteCode.trim().toUpperCase(),
+            role: 'user',
+            is_active: true,
+            expires_at: expirationDate.toISOString(),
+          })
+          .eq('id', authData.user.id);
 
-        if (profileErr) {
-          console.error('Erro ao gravar profile:', profileErr);
-          throw new Error('Erro ao salvar perfil: ' + profileErr.message);
+        if (updateError) {
+          console.error("Aviso: Usuário criado, mas erro ao atualizar perfil.", updateError);
+          // Não lançamos erro fatal aqui para não bloquear o usuário que já criou login.
+          // O Admin pode corrigir depois se necessário.
+        } else {
+          // Se deu certo atualizar o perfil, queimamos o convite.
+          await supabase
+            .from('whitelist')
+            .update({ used_at: new Date().toISOString() })
+            .eq('id', whitelistData.id);
         }
 
-        // 5. Queimar o Convite (Marcar como usado)
-        const { error: wlErr } = await supabase
-          .from('whitelist')
-          .update({ used_at: new Date().toISOString() })
-          .eq('id', whitelistData.id);
-
-        if (wlErr) {
-          console.error('Erro ao queimar convite:', wlErr);
-          throw new Error('Erro ao finalizar convite: ' + wlErr.message);
-        }
-
-        // Sucesso!
+        // Sucesso Total! Recarrega a página para entrar no sistema.
         window.location.reload();
       }
+
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Erro ao realizar cadastro.' });
     } finally {
@@ -776,7 +767,11 @@ const App: React.FC = () => {
         <Navbar
           currentView={view as any}
           isLoggedIn={true}
-          onLogout={() => supabase.auth.signOut()}
+          onLogout={async () => {
+            // CORREÇÃO: Limpa o estado local para logout imediato
+            await supabase.auth.signOut();
+            setUser(null);
+          }}
           onNavigate={(v) => {
             setView(v);
             if (v !== 'reader' && v !== 'preview') setCurrentBook(null);
