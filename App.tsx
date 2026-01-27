@@ -109,7 +109,8 @@ const LoginView: React.FC<{
     if (activationName.length < 3) { setActivationError('Nome muito curto para certificado.'); setIsValidating(false); return; }
 
     try {
-        const fakeEmail = `${activationCode.trim().toUpperCase()}.${selectedCohortId.slice(0,4)}@ativ.local`;
+        // Correção: Força minúsculo e usa um domínio válido para passar na validação
+const fakeEmail = `${activationCode.trim().toLowerCase()}.${selectedCohortId.slice(0,4).toLowerCase()}@ativ.com`;
         
         const { data: cohortData } = await supabase.from('cohorts').select('validity_days').eq('id', selectedCohortId).single();
         const days = cohortData?.validity_days || 365;
