@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Navbar } from './components/Navbar';
 import { BookCard } from './components/BookCard';
 import { Reader } from './components/Reader';
+import { ProtocolSummary } from './components/ProtocolSummary'; // Importação Necessária
 import { AdminDashboard } from './components/AdminDashboard';
 import { SupportModal } from './components/SupportModal';
 import { Button } from './components/Button';
@@ -86,7 +87,7 @@ const LoginView: React.FC<{
 // === APP PRINCIPAL ===
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [view, setView] = useState<ViewState>('home');
+  const [view, setView] = useState<ViewState | 'preview'>('home'); // Manobra: Aceita visualização de sumário
   const [books, setBooks] = useState<Book[]>([]);
   const [currentBook, setCurrentBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
@@ -151,8 +152,8 @@ const App: React.FC = () => {
 
   // Determina visualmente a insígnia do manual no card [cite: 327, 328]
   const getBookStatus = (bookId: string): 'cursando' | 'certificado' | undefined => {
-    if (completedBookIds.includes(bookId)) return 'certificado'; // Prioridade: Missão Cumprida
-    if (progress.opened[bookId]) return 'cursando'; // Status: Em Operação
+    if (completedBookIds.includes(bookId)) return 'certificado'; 
+    if (progress.opened[bookId]) return 'cursando';
     return undefined;
   };
 
@@ -209,7 +210,7 @@ const App: React.FC = () => {
       return;
     }
 
-    // Busca Certificados Aprovados no Banco de Dados 
+    // Busca Certificados Aprovados (Inteligência Central)
     const { data: exams } = await supabase
       .from('user_exams')
       .select('ebook_id')
@@ -297,7 +298,7 @@ const App: React.FC = () => {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // === DADOS COMPUTADOS PARA A OPERAÇÃO === [cite: 347]
+  // === DADOS COMPUTADOS PARA A OPERAÇÃO ===
   const dashboardData = useMemo(() => {
     const openedCount = Object.keys(progress.opened).length;
     const booksByTrack = groupBooksByTrack(books);
@@ -307,7 +308,7 @@ const App: React.FC = () => {
       .filter(b => !completedBookIds.includes(b.id))
       .slice(0, 6);
 
-    // MÁGICA: Filtra apenas manuais que o agente já iniciou (Histórico local)
+    // Filtra apenas manuais que o agente já iniciou (Histórico local)
     const myHistory = books.filter(b => progress.opened[b.id]);
 
     return { openedCount, booksByTrack, recommendations, myHistory };
@@ -417,12 +418,12 @@ const App: React.FC = () => {
       {/* NAVBAR */}
       {!isProfileIncomplete && view !== 'admin' && (
         <Navbar
-          currentView={view}
+          currentView={view as any}
           isLoggedIn={true}
           onLogout={() => supabase.auth.signOut()}
           onNavigate={(v) => {
             setView(v);
-            if (v !== 'reader') setCurrentBook(null);
+            if (v !== 'reader' && v !== 'preview') setCurrentBook(null);
           }}
           isAdmin={user.role !== 'user'}
         />
@@ -432,7 +433,6 @@ const App: React.FC = () => {
       {view === 'home' && !isProfileIncomplete && (
         <div className="pt-24 px-6 max-w-7xl mx-auto space-y-10 animate-fade-in pb-10">
           
-          {/* BLOCO A: RESUMO DE PROGRESSO */}
           <section className="grid grid-cols-2 gap-4">
             <div className="bg-graphite-800 border border-graphite-700 p-6 rounded-2xl flex flex-col justify-between">
               <div className="flex items-center gap-2 text-text-muted mb-2">
@@ -450,7 +450,6 @@ const App: React.FC = () => {
             </div>
           </section>
 
-          {/* BLOCO B: RECOMENDAÇÕES (CARROSSEL) */}
           {dashboardData.recommendations.length > 0 && (
             <section>
               <h2 className="text-lg font-display font-bold text-amber-500 uppercase mb-4 flex items-center gap-2">
@@ -462,11 +461,10 @@ const App: React.FC = () => {
                   <div key={book.id} className="min-w-[280px] md:min-w-[300px] snap-center">
                     <BookCard 
                       book={book}
-                      status={getBookStatus(book.id)} // Injeção de tarja
+                      status={getBookStatus(book.id)}
                       onClick={(b) => {
-                        markBookOpened(b.id);
                         setCurrentBook(b);
-                        setView('reader');
+                        setView('preview'); // MANOBRA: Vai para o Sumário primeiro
                       }} 
                     />
                   </div>
@@ -475,7 +473,6 @@ const App: React.FC = () => {
             </section>
           )}
 
-          {/* BLOCO C: TRILHAS EM RESUMO (CARDS) */}
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-display font-bold text-white uppercase flex items-center gap-2">
@@ -590,11 +587,10 @@ const App: React.FC = () => {
                 <BookCard 
                   key={book.id} 
                   book={book}
-                  status={getBookStatus(book.id)} // Injeção de tarja
+                  status={getBookStatus(book.id)}
                   onClick={(b) => {
-                    markBookOpened(b.id);
                     setCurrentBook(b);
-                    setView('reader');
+                    setView('preview'); // MANOBRA: Vai para o Sumário primeiro
                   }} 
                 />
               ))
@@ -620,9 +616,8 @@ const App: React.FC = () => {
                 book={book} 
                 status={getBookStatus(book.id)} 
                 onClick={(b) => {
-                  markBookOpened(b.id);
                   setCurrentBook(b);
-                  setView('reader');
+                  setView('preview'); // MANOBRA: Vai para o Sumário primeiro
                 }} 
               />
             ))}
@@ -645,6 +640,20 @@ const App: React.FC = () => {
       </button>
 
       {isSupportOpen && <SupportModal user={user} onClose={() => setIsSupportOpen(false)} />}
+      
+      {/* MANOBRA DE NAVEGAÇÃO: SUMÁRIO -> LEITOR */}
+      {view === 'preview' && currentBook && (
+        <ProtocolSummary 
+          book={currentBook} 
+          user={user} 
+          onClose={() => setView('home')} 
+          onStart={(b) => {
+            markBookOpened(b.id); // SÓ MARCA COMO CURSANDO AQUI
+            setView('reader');
+          }}
+        />
+      )}
+
       {view === 'reader' && currentBook && <Reader book={currentBook} user={user} onClose={() => setView('home')} />}
       {view === 'admin' && <AdminDashboard user={user} onClose={() => setView('home')} />}
     </div>
