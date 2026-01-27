@@ -26,17 +26,15 @@ type Profile = {
   expires_at: string | null;
 };
 
-// === LOGIN COMPONENT (PIVOTADO: EMAIL & SENHA + CONVITE) ===
+// === LOGIN COMPONENT ===
 const LoginView: React.FC<{
   onLoginAction: (e: string, p: string) => Promise<void>;
   authLoading: boolean;
   authError: string | null;
 }> = ({ onLoginAction, authLoading, authError }) => {
-  // Modos: 'login' | 'register' | 'forgot'
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   
-  // Form States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -50,14 +48,13 @@ const LoginView: React.FC<{
     const code = params.get('invite');
     if (code) {
       setInviteCode(code);
-      setMode('register'); // Já abre no cadastro
+      setMode('register'); 
     }
   }, []);
 
-  // Limpar mensagens ao trocar de modo
   useEffect(() => { setMessage(null); }, [mode]);
 
-  // AÇÃO: CADASTRAR NOVO AGENTE
+  // AÇÃO: CADASTRAR (CORRIGIDA: CALCULA E ENVIA A DATA)
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -82,7 +79,7 @@ const LoginView: React.FC<{
             throw new Error('Código de convite inválido ou já utilizado.');
         }
 
-        // 2. Buscar Validade da Turma
+        // 2. Buscar Validade da Turma e CALCULAR A DATA AQUI (Front-end Authority)
         const { data: cohortData } = await supabase
             .from('cohorts')
             .select('validity_days')
@@ -90,34 +87,34 @@ const LoginView: React.FC<{
             .single();
         
         const days = cohortData?.validity_days || 365;
+        
+        // Cálculo da Data de Expiração
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + days);
 
-        // 3. Criar Usuário no Supabase Auth
+        // 3. Criar Usuário enviando a DATA PRONTA nos metadados
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email: email.trim(),
             password: password,
-            options: { data: { full_name: fullName.toUpperCase() } }
+            options: { 
+                data: { 
+                    full_name: fullName.toUpperCase(),
+                    cohort_id: whitelistData.cohort_id,
+                    ticket_code: inviteCode.trim().toUpperCase(),
+                    expires_at: expirationDate.toISOString() // << CORREÇÃO CRÍTICA AQUI
+                } 
+            }
         });
 
         if (authError) throw authError;
 
         if (authData.user) {
-            // 4. Atualizar Perfil
-            await supabase.from('profiles').update({
-                full_name: fullName.toUpperCase(),
-                cohort_id: whitelistData.cohort_id,
-                ticket_code: inviteCode.trim().toUpperCase(),
-                role: 'user',
-                expires_at: expirationDate.toISOString()
-            }).eq('id', authData.user.id);
-
-            // 5. Queimar o Convite (Marcar como usado)
+            // 4. Queimar o Convite (Marcar como usado)
             await supabase.from('whitelist')
                 .update({ used_at: new Date().toISOString() })
                 .eq('id', whitelistData.id);
 
-            // Sucesso!
+            // Sucesso! Recarrega para entrar
             window.location.reload();
         }
 
@@ -133,11 +130,8 @@ const LoginView: React.FC<{
       e.preventDefault();
       setIsLoading(true);
       setMessage(null);
-
       try {
-          const { error } = await supabase.auth.resetPasswordForEmail(email, {
-              redirectTo: window.location.origin, // Redireciona para o próprio site
-          });
+          const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
           if (error) throw error;
           setMessage({ type: 'success', text: 'Instruções enviadas para o seu e-mail.' });
       } catch (err: any) {
@@ -153,7 +147,6 @@ const LoginView: React.FC<{
       
       <div className="w-full max-w-md bg-graphite-800/80 backdrop-blur-md border border-graphite-700 p-8 rounded-2xl shadow-2xl relative z-10">
         
-        {/* HEADER */}
         <div className="flex flex-col items-center mb-8">
           <img src="/logo_ativ.png" alt="ATIV" className="w-20 h-20 object-contain mb-4 drop-shadow-[0_0_15px_rgba(245,158,11,0.4)]" />
           <h1 className="text-2xl font-bold text-white uppercase tracking-tighter">
@@ -161,7 +154,6 @@ const LoginView: React.FC<{
           </h1>
         </div>
 
-        {/* FEEDBACK MENSAGENS */}
         {message && (
             <div className={`mb-6 p-3 rounded text-xs font-bold uppercase flex items-center gap-2 ${message.type === 'error' ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-green-500/10 text-green-500 border border-green-500/20'}`}>
                 {message.type === 'error' ? <AlertCircle size={14}/> : <CheckCircle size={14}/>}
@@ -190,7 +182,6 @@ const LoginView: React.FC<{
                     <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black/50 border border-graphite-600 rounded-lg p-3 text-white focus:border-amber-500 outline-none" placeholder="••••••••" />
                 </div>
                 <Button type="submit" fullWidth disabled={authLoading}>{authLoading ? <Loader2 className="animate-spin" /> : 'ENTRAR NO SISTEMA'}</Button>
-                
                 <div className="pt-4 border-t border-graphite-700 mt-4 text-center">
                     <span className="text-xs text-text-muted">Ainda não tem conta? </span>
                     <button type="button" onClick={() => setMode('register')} className="text-xs font-bold text-amber-500 hover:text-white uppercase ml-1">Criar Conta</button>
@@ -205,24 +196,19 @@ const LoginView: React.FC<{
                     <label className="text-[10px] font-bold text-amber-500 uppercase flex items-center gap-1 mb-1"><Key size={10}/> Código de Convite</label>
                     <input type="text" required value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} className="w-full bg-transparent border-none p-0 text-white font-mono font-bold uppercase focus:ring-0 placeholder:text-gray-600" placeholder="ATIV-XXXXXX" />
                 </div>
-
                 <div className="space-y-2">
                     <label className="text-[10px] font-bold text-text-muted uppercase">Nome Completo</label>
                     <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full bg-black/50 border border-graphite-600 rounded-lg p-3 text-white focus:border-amber-500 outline-none uppercase" placeholder="JOÃO DA SILVA" />
                 </div>
-
                 <div className="space-y-2">
                     <label className="text-[10px] font-bold text-text-muted uppercase">Seu Melhor E-mail</label>
                     <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black/50 border border-graphite-600 rounded-lg p-3 text-white focus:border-amber-500 outline-none" placeholder="seu@email.com" />
                 </div>
-
                 <div className="space-y-2">
                     <label className="text-[10px] font-bold text-text-muted uppercase">Defina sua Senha</label>
                     <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black/50 border border-graphite-600 rounded-lg p-3 text-white focus:border-amber-500 outline-none" placeholder="Mínimo 6 caracteres" />
                 </div>
-
                 <Button type="submit" fullWidth disabled={isLoading}>{isLoading ? <Loader2 className="animate-spin" /> : 'CONFIRMAR MATRÍCULA'}</Button>
-
                 <div className="text-center pt-2">
                     <button type="button" onClick={() => setMode('login')} className="text-xs font-bold text-text-muted hover:text-white uppercase flex items-center justify-center gap-1 w-full"><ArrowLeft size={12}/> Voltar ao Login</button>
                 </div>
@@ -243,7 +229,6 @@ const LoginView: React.FC<{
                 </div>
             </form>
         )}
-
       </div>
       <div className="absolute bottom-4 text-center w-full pointer-events-none">
          <p className="text-[10px] text-graphite-600 uppercase font-mono tracking-[0.2em]">ATIV Brasil System • Secure Connection</p>
