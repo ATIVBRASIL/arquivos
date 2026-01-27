@@ -42,6 +42,7 @@ type Profile = {
   experience_level: string | null;
   is_active: boolean;
   expires_at: string | null;
+  is_lifetime?: boolean; // Adicionado para compatibilidade
 };
 
 // === LOGIN COMPONENT ===
@@ -102,7 +103,7 @@ const LoginView: React.FC<{
         throw new Error('Código de convite inválido ou já utilizado.');
       }
 
-      // 2. Calcular a Data de Validade (No Front-end)
+      // 2. Calcular a Data e o Status Vitalício (LÓGICA NOVA APLICADA AQUI)
       // O App decide a data baseado na turma do convite.
       const { data: cohortData } = await supabase
         .from('cohorts')
@@ -110,16 +111,19 @@ const LoginView: React.FC<{
         .eq('id', whitelistData.cohort_id)
         .single();
 
-        const days = cohortData?.validity_days || 365;
+      const days = cohortData?.validity_days || 365;
       
-        // LÓGICA CORRIGIDA: Se for mais de 30 mil dias, consideramos Vitalício (Null)
-        let finalExpiration: string | null = null; 
-  
-        if (days < 30000) { 
-          const expirationDate = new Date();
-          expirationDate.setDate(expirationDate.getDate() + days);
-          finalExpiration = expirationDate.toISOString();
-        }
+      // Se a validade for maior que 20 mil dias (ex: 100 anos), damos o Crachá Vitalício
+      const isLifetime = days > 20000; 
+      
+      let finalExpiration: string | null = null;
+
+      // Se NÃO for vitalício, calculamos a data de vencimento. Se for, fica NULL.
+      if (!isLifetime) {
+         const dateCalc = new Date();
+         dateCalc.setDate(dateCalc.getDate() + days);
+         finalExpiration = dateCalc.toISOString();
+      }
 
       // 3. ETAPA 1: Criar o Login (Auth)
       // Enviamos APENAS email e senha. O "Porteiro Simples" (SQL) vai deixar entrar sem erro.
@@ -142,7 +146,8 @@ const LoginView: React.FC<{
             ticket_code: inviteCode.trim().toUpperCase(),
             role: 'user',
             is_active: true,
-            expires_at: finalExpiration,
+            is_lifetime: isLifetime,     // <--- NOVA LINHA: Crachá Vitalício
+            expires_at: finalExpiration, // <--- NOVA LINHA: Data correta ou Null
           })
           .eq('id', authData.user.id);
 

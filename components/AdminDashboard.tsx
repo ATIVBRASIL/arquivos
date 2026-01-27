@@ -22,6 +22,7 @@ interface ProfileData {
   cohort_name?: string;
   expires_at?: string;
   ticket_code?: string;
+  is_lifetime?: boolean;
 }
 
 interface UserExam {
@@ -540,29 +541,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                     </thead>
                     <tbody className="divide-y divide-graphite-700">
                       {loading ? <tr><td colSpan={5} className="p-8 text-center text-text-muted">CARREGANDO...</td></tr> : filteredProfiles.map((profile) => {
-                        const isVitalicio = !profile.expires_at || new Date(profile.expires_at).getFullYear() > 2100;
-                        const isExpired = !isVitalicio && profile.expires_at && new Date(profile.expires_at) < new Date();
                         return (
                           <tr key={profile.id} className="hover:bg-graphite-700/50">
-  <td className="p-4">
-    <div className="font-bold text-white">{profile.full_name || 'SEM NOME'}</div>
-    <div className="text-xs text-text-muted">{profile.email.includes('ativ.local') ? 'Matrícula: ' + profile.ticket_code : profile.email}</div>
-  </td>
-  <td className="p-4">
-    <div className="flex flex-col gap-1">
-      <span className="text-xs font-bold text-amber-500">{profile.cohort_name}</span>
-      <span className={`text-[10px] font-bold uppercase ${isExpired ? 'text-red-500' : 'text-green-500'}`}>
-        {isVitalicio 
-          ? 'VITALÍCIO' 
-          : (isExpired ? 'Expirado' : `Vence: ${new Date(profile.expires_at!).toLocaleDateString()}`)
-        }
-      </span>
-    </div>
-  </td>
-  <td className="p-4">{profile.whatsapp ? <a href={`https://wa.me/55${profile.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="text-green-500 font-bold text-xs">WhatsApp OK</a> : <span className="text-text-muted text-xs">N/A</span>}</td>
-  <td className="p-4"><div className="flex flex-col"><span className="text-xs font-bold text-white">{profile.occupation || '-'}</span></div></td>
-  <td className="p-4 text-xs text-text-muted font-mono">{new Date(profile.created_at).toLocaleDateString('pt-BR')}</td>
-</tr>
+            <td className="p-4">
+              <div className="font-bold text-white">{profile.full_name || 'SEM NOME'}</div>
+              <div className="text-xs text-text-muted">{profile.email.includes('ativ.local') ? 'Matrícula: ' + profile.ticket_code : profile.email}</div>
+            </td>
+            <td className="p-4">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-bold text-amber-500">{profile.cohort_name}</span>
+                <span className={`text-[10px] font-bold uppercase ${(!profile.is_lifetime && profile.expires_at && new Date(profile.expires_at) < new Date()) ? 'text-red-500' : 'text-green-500'}`}>
+                  {profile.is_lifetime 
+                    ? 'VITALÍCIO' 
+                    : (profile.expires_at ? `Vence: ${new Date(profile.expires_at).toLocaleDateString()}` : 'VITALÍCIO')
+                  }
+                </span>
+              </div>
+            </td>
+            <td className="p-4">{profile.whatsapp ? <a href={`https://wa.me/55${profile.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="text-green-500 font-bold text-xs">WhatsApp OK</a> : <span className="text-text-muted text-xs">N/A</span>}</td>
+            <td className="p-4"><div className="flex flex-col"><span className="text-xs font-bold text-white">{profile.occupation || '-'}</span></div></td>
+            <td className="p-4 text-xs text-text-muted font-mono">{new Date(profile.created_at).toLocaleDateString('pt-BR')}</td>
+          </tr>
                         );
                       })}
                     </tbody>
