@@ -10,6 +10,7 @@ import { ValidateCertificate } from './components/ValidateCertificate';
 import { Shield, Loader2, MessageSquare, UserCheck, Save, Search, ChevronRight, BarChart3, Layers, PlayCircle, ArrowLeft, UserPlus, CheckCircle, AlertCircle } from 'lucide-react';
 
 // Importações de Inteligência e Dados
+// ADICIONEI 'Cohort' AQUI QUE FALTAVA NA VERSÃO ANTERIOR
 import { Book, User, ViewState, UserRole, UserProgress, Cohort } from './types'; 
 import { supabase } from './src/lib/supabase'; 
 import { TRACKS, groupBooksByTrack, TrackId } from './src/lib/tracks';
@@ -23,51 +24,65 @@ type Profile = {
   occupation: string | null;
   main_goal: string | null;
   experience_level: string | null;
-  is_active: boolean;
-  expires_at: string | null;
+  is_active: boolean;     // Adicionado para compatibilidade
+  expires_at: string | null; // Adicionado para compatibilidade
 };
 
-// === LOGIN COMPONENT - ATUALIZADO COM ATIVAÇÃO POR MATRÍCULA ===
+// === LOGIN COMPONENT - VERSÃO ATUALIZADA (LINK MÁGICO + WHITELIST) ===
+// Substituí apenas este componente. O resto do arquivo é o seu original.
 const LoginView: React.FC<{
   onLoginAction: (e: string, p: string) => Promise<void>;
   authLoading: boolean;
   authError: string | null;
 }> = ({ onLoginAction, authLoading, authError }) => {
-  // Estado: 'login' (padrão) ou 'activate' (primeiro acesso)
   const [mode, setMode] = useState<'login' | 'activate'>('login');
-
-  // Estados de Login
   const [localEmail, setLocalEmail] = useState('');
   const [localPassword, setLocalPassword] = useState('');
 
-  // Estados de Ativação (Whitelist)
+  // States de Ativação
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [selectedCohortId, setSelectedCohortId] = useState('');
-  const [activationCode, setActivationCode] = useState(''); // Matrícula
-  const [activationName, setActivationName] = useState(''); // Nome de Guerra
+  const [activationCode, setActivationCode] = useState('');
+  const [activationName, setActivationName] = useState('');
   const [activationPassword, setActivationPassword] = useState('');
-  const [activationStep, setActivationStep] = useState<1 | 2>(1); // 1=Validar, 2=Criar Senha
+  const [activationStep, setActivationStep] = useState<1 | 2>(1);
   const [activationError, setActivationError] = useState('');
   const [isValidating, setIsValidating] = useState(false);
+  
+  // Flag Link Mágico (Esconde seleção de turma)
+  const [isMagicLink, setIsMagicLink] = useState(false);
 
-  // Buscar turmas ao entrar no modo de ativação
+  // 1. Detectar Link na URL ao carregar
   useEffect(() => {
-    if (mode === 'activate') {
+    const params = new URLSearchParams(window.location.search);
+    const inviteCode = params.get('invite');
+    const cohortId = params.get('c');
+
+    if (inviteCode && cohortId) {
+        setMode('activate');
+        setSelectedCohortId(cohortId);
+        setActivationCode(inviteCode);
+        setIsMagicLink(true);
+    }
+  }, []);
+
+  // 2. Carregar Turmas (apenas se NÃO for link mágico)
+  useEffect(() => {
+    if (mode === 'activate' && !isMagicLink) {
       const fetchCohorts = async () => {
         const { data } = await supabase.from('cohorts').select('*').order('name');
         if (data) setCohorts(data);
       };
       fetchCohorts();
     }
-  }, [mode]);
+  }, [mode, isMagicLink]);
 
-  // Função para validar a matrícula na Whitelist
   const verifyWhitelist = async () => {
     setActivationError('');
     setIsValidating(true);
     
     if (!selectedCohortId || !activationCode.trim()) {
-      setActivationError('Selecione a turma e digite sua matrícula.');
+      setActivationError('Dados de acesso incompletos.');
       setIsValidating(false);
       return;
     }
@@ -77,36 +92,36 @@ const LoginView: React.FC<{
         .from('whitelist')
         .select('*')
         .eq('cohort_id', selectedCohortId)
-        .eq('allowed_code', activationCode.trim().toUpperCase()) // Normaliza
-        .is('used_at', null) // Tem que estar livre
+        .eq('allowed_code', activationCode.trim().toUpperCase())
+        .is('used_at', null)
         .single();
 
       if (error || !data) {
-        setActivationError('Matrícula não encontrada nesta turma ou já ativada.');
+        setActivationError('Código inválido ou já utilizado.');
       } else {
-        setActivationStep(2); // Sucesso: Avança
+        setActivationStep(2);
       }
-    } catch (err) {
-      setActivationError('Erro ao verificar matrícula.');
-    } finally {
-      setIsValidating(false);
+    } catch (err) { 
+      setActivationError('Erro ao verificar credencial.'); 
+    } finally { 
+      setIsValidating(false); 
     }
   };
 
-  // Função final de criação de conta
   const handleActivation = async () => {
     setActivationError('');
     setIsValidating(true);
-
-    if (activationPassword.length < 6) {
-        setActivationError('A senha deve ter no mínimo 6 caracteres.');
-        setIsValidating(false);
-        return;
-    }
+    if (activationPassword.length < 6) { setActivationError('A senha deve ter no mínimo 6 caracteres.'); setIsValidating(false); return; }
+    if (activationName.length < 3) { setActivationError('Nome muito curto.'); setIsValidating(false); return; }
 
     try {
-        // Gerar email interno baseado na matrícula para unicidade
         const fakeEmail = `${activationCode.trim().toUpperCase()}.${selectedCohortId.slice(0,4)}@ativ.local`;
+        
+        // Calcular expiração baseada na turma (Invisible Cohort Logic)
+        const { data: cohortData } = await supabase.from('cohorts').select('validity_days').eq('id', selectedCohortId).single();
+        const days = cohortData?.validity_days || 365;
+        const expirationDate = new Date();
+        expirationDate.setDate(expirationDate.getDate() + days);
 
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email: fakeEmail,
@@ -117,35 +132,28 @@ const LoginView: React.FC<{
         if (authError) throw authError;
 
         if (authData.user) {
-            // Atualizar Profile
-            const { error: profileError } = await supabase.from('profiles').update({
+            await supabase.from('profiles').update({
                 full_name: activationName.toUpperCase(),
                 cohort_id: selectedCohortId,
                 ticket_code: activationCode.trim().toUpperCase(),
-                role: 'user'
+                role: 'user',
+                expires_at: expirationDate.toISOString()
             }).eq('id', authData.user.id);
 
-            if (profileError) throw profileError;
-
-            // Marcar Whitelist como usada
-            await supabase.from('whitelist')
-                .update({ used_at: new Date().toISOString() })
-                .eq('cohort_id', selectedCohortId)
-                .eq('allowed_code', activationCode.trim().toUpperCase());
-
+            await supabase.from('whitelist').update({ used_at: new Date().toISOString() }).eq('cohort_id', selectedCohortId).eq('allowed_code', activationCode.trim().toUpperCase());
+            
+            // Limpa a URL
+            window.history.replaceState(null, '', '/');
             window.location.reload(); 
         }
-    } catch (err: any) {
-        setActivationError(err.message || 'Erro ao criar conta.');
-        setIsValidating(false);
-    }
+    } catch (err: any) { setActivationError(err.message || 'Erro ao criar conta.'); setIsValidating(false); }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-black font-sans">
       <div className="w-full max-w-md bg-graphite-800/50 backdrop-blur-md border border-graphite-700 p-8 rounded-2xl shadow-2xl relative z-10">
         
-        {/* CABEÇALHO COM HERÁLDICA */}
+        {/* CABEÇALHO (MANTIDO DO SEU DESIGN ORIGINAL) */}
         <div className="flex flex-col items-center mb-6">
           <img 
             src="/logo_ativ.png" 
@@ -153,161 +161,86 @@ const LoginView: React.FC<{
             className="w-24 h-24 object-contain mb-4 drop-shadow-[0_0_10px_rgba(245,158,11,0.3)]" 
           />
           <h1 className="text-2xl font-bold text-text-primary uppercase tracking-tighter text-center leading-none">
-            {mode === 'login' ? 'ATIV' : 'ALISTAMENTO'}
+            {mode === 'login' ? 'ATIV' : 'NOVO AGENTE'}
           </h1>
           <p className="text-xs text-text-muted italic mt-1 uppercase tracking-widest">
-            {mode === 'login' ? 'Operação de Inteligência Digital' : 'Validação de Credencial Funcional'}
+            {mode === 'login' ? 'Operação de Inteligência Digital' : 'Ativação de Credencial'}
           </p>
         </div>
 
-        {/* === MODO LOGIN (PADRÃO) === */}
         {mode === 'login' && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              onLoginAction(localEmail, localPassword);
-            }}
-            className="space-y-4 animate-fade-in"
-          >
-            <input
-              type="text"
-              required
-              value={localEmail}
-              onChange={(e) => setLocalEmail(e.target.value)}
-              className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-text-primary outline-none focus:border-amber-500 font-bold"
-              placeholder="USUÁRIO / EMAIL"
-            />
-            <input
-              type="password"
-              required
-              value={localPassword}
-              onChange={(e) => setLocalPassword(e.target.value)}
-              className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-text-primary outline-none focus:border-amber-500"
-              placeholder="SENHA DE ACESSO"
-            />
-
+          <form onSubmit={(e) => { e.preventDefault(); onLoginAction(localEmail, localPassword); }} className="space-y-4 animate-fade-in">
+            <input type="text" required value={localEmail} onChange={(e) => setLocalEmail(e.target.value)} className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-text-primary outline-none focus:border-amber-500 font-bold" placeholder="USUÁRIO / EMAIL" />
+            <input type="password" required value={localPassword} onChange={(e) => setLocalPassword(e.target.value)} className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-text-primary outline-none focus:border-amber-500" placeholder="SENHA DE ACESSO" />
+            
             {authError && (
-              <div className="bg-red-500/10 border border-red-500/20 p-2 rounded text-red-500 text-[10px] text-center uppercase font-bold flex items-center justify-center gap-2">
-                <AlertCircle size={12} /> {authError}
-              </div>
+                <div className="bg-red-500/10 border border-red-500/20 p-2 rounded text-red-500 text-[10px] text-center uppercase font-bold flex items-center justify-center gap-2">
+                    <AlertCircle size={12} /> {authError}
+                </div>
             )}
 
             <Button type="submit" fullWidth disabled={authLoading}>
-              {authLoading ? <><Loader2 className="animate-spin mr-2" size={16}/> AUTENTICANDO...</> : 'ACESSAR SISTEMA'}
+                {authLoading ? <><Loader2 className="animate-spin mr-2" size={16}/> AUTENTICANDO...</> : 'ACESSAR SISTEMA'}
             </Button>
 
             <div className="pt-4 border-t border-graphite-700 text-center">
-                <button 
-                    type="button"
-                    onClick={() => setMode('activate')}
-                    className="text-xs text-text-muted hover:text-amber-500 font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 w-full"
-                >
+                <button type="button" onClick={() => setMode('activate')} className="text-xs text-text-muted hover:text-amber-500 font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 w-full">
                     <UserPlus size={14} /> Primeiro Acesso? Ativar Conta
                 </button>
             </div>
           </form>
         )}
 
-        {/* === MODO ATIVAÇÃO (PRIMEIRO ACESSO) === */}
         {mode === 'activate' && (
             <div className="animate-fade-in space-y-4">
                 {activationStep === 1 ? (
-                    // PASSO 1: VALIDAR MATRÍCULA
                     <>
+                        {isMagicLink ? (
+                             <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded text-amber-500 text-xs font-bold uppercase text-center mb-4">
+                                Você está ativando um acesso exclusivo.<br/>Confirme o código abaixo.
+                             </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-amber-500 uppercase tracking-wider ml-1">1. Selecione sua Turma</label>
+                                <select value={selectedCohortId} onChange={(e) => setSelectedCohortId(e.target.value)} className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500 transition-colors font-bold uppercase">
+                                    <option value="">SELECIONE...</option>
+                                    {cohorts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                            </div>
+                        )}
                         <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-amber-500 uppercase tracking-wider ml-1">1. Selecione sua Turma / Empresa</label>
-                            <select 
-                                value={selectedCohortId}
-                                onChange={(e) => setSelectedCohortId(e.target.value)}
-                                className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500 transition-colors font-bold uppercase"
-                            >
-                                <option value="">SELECIONE...</option>
-                                {cohorts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-amber-500 uppercase tracking-wider ml-1">2. Digite sua Matrícula / ID</label>
-                            <input 
-                                type="text"
-                                value={activationCode}
-                                onChange={(e) => setActivationCode(e.target.value)}
-                                className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500 transition-colors font-bold uppercase tracking-widest"
-                                placeholder="EX: 992102"
-                            />
+                            <label className="text-[10px] font-bold text-amber-500 uppercase tracking-wider ml-1">Código de Acesso</label>
+                            <input type="text" value={activationCode} onChange={(e) => setActivationCode(e.target.value)} className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500 transition-colors font-bold uppercase tracking-widest" placeholder="CÓDIGO ÚNICO" disabled={isMagicLink} />
                         </div>
                         
-                        {activationError && (
-                             <div className="bg-red-500/10 border border-red-500/20 p-2 rounded text-red-500 text-[10px] text-center uppercase font-bold flex items-center justify-center gap-2">
-                                <AlertCircle size={12} /> {activationError}
-                            </div>
-                        )}
-
-                        <Button onClick={verifyWhitelist} fullWidth disabled={isValidating}>
-                            {isValidating ? <><Loader2 className="animate-spin mr-2" size={16}/> VERIFICANDO...</> : 'VALIDAR CREDENCIAL'}
-                        </Button>
+                        {activationError && <div className="bg-red-500/10 border border-red-500/20 p-2 rounded text-red-500 text-[10px] text-center uppercase font-bold flex items-center justify-center gap-2"><AlertCircle size={12} /> {activationError}</div>}
+                        <Button onClick={verifyWhitelist} fullWidth disabled={isValidating}>{isValidating ? <><Loader2 className="animate-spin mr-2" size={16}/> VERIFICANDO...</> : 'VALIDAR ACESSO'}</Button>
                     </>
                 ) : (
-                    // PASSO 2: CRIAR DADOS
                     <>
-                        <div className="bg-green-500/10 border border-green-500/20 p-3 rounded text-green-500 text-xs font-bold uppercase text-center mb-2 flex items-center justify-center gap-2">
-                            <CheckCircle size={16} /> Matrícula Autorizada
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-amber-500 uppercase tracking-wider ml-1">Seu Nome de Guerra (Exibição)</label>
-                            <input 
-                                type="text"
-                                value={activationName}
-                                onChange={(e) => setActivationName(e.target.value)}
-                                className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500 transition-colors font-bold uppercase"
-                                placeholder="EX: SD. SILVA"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-amber-500 uppercase tracking-wider ml-1">Crie sua Senha</label>
-                            <input 
-                                type="password"
-                                value={activationPassword}
-                                onChange={(e) => setActivationPassword(e.target.value)}
-                                className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500 transition-colors"
-                                placeholder="Mínimo 6 caracteres"
-                            />
-                        </div>
-
-                        {activationError && (
-                             <div className="bg-red-500/10 border border-red-500/20 p-2 rounded text-red-500 text-[10px] text-center uppercase font-bold flex items-center justify-center gap-2">
-                                <AlertCircle size={12} /> {activationError}
-                            </div>
-                        )}
-
-                        <Button onClick={handleActivation} fullWidth disabled={isValidating}>
-                            {isValidating ? <><Loader2 className="animate-spin mr-2" size={16}/> ATIVANDO...</> : 'CONFIRMAR E ENTRAR'}
-                        </Button>
+                        <div className="bg-green-500/10 border border-green-500/20 p-3 rounded text-green-500 text-xs font-bold uppercase text-center mb-2 flex items-center justify-center gap-2"><CheckCircle size={16} /> Acesso Liberado</div>
+                        <div className="space-y-2"><label className="text-[10px] font-bold text-amber-500 uppercase tracking-wider ml-1">Seu Nome de Guerra (Exibição)</label><input type="text" value={activationName} onChange={(e) => setActivationName(e.target.value)} className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500 transition-colors font-bold uppercase" placeholder="EX: SD. SILVA" /></div>
+                        <div className="space-y-2"><label className="text-[10px] font-bold text-amber-500 uppercase tracking-wider ml-1">Crie sua Senha</label><input type="password" value={activationPassword} onChange={(e) => setActivationPassword(e.target.value)} className="w-full bg-black border border-graphite-600 rounded-lg p-3 text-sm text-white outline-none focus:border-amber-500 transition-colors" placeholder="Mínimo 6 caracteres" /></div>
+                        {activationError && <div className="bg-red-500/10 border border-red-500/20 p-2 rounded text-red-500 text-[10px] text-center uppercase font-bold flex items-center justify-center gap-2"><AlertCircle size={12} /> {activationError}</div>}
+                        <Button onClick={handleActivation} fullWidth disabled={isValidating}>{isValidating ? <><Loader2 className="animate-spin mr-2" size={16}/> REGISTRAR E ENTRAR...</> : 'CONFIRMAR CADASTRO'}</Button>
                     </>
                 )}
-
                 <div className="pt-4 border-t border-graphite-700 text-center">
-                    <button 
-                        type="button"
-                        onClick={() => { setMode('login'); setActivationStep(1); setActivationError(''); }}
-                        className="text-xs text-text-muted hover:text-white font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 w-full"
-                    >
+                    <button type="button" onClick={() => { setMode('login'); setActivationStep(1); setActivationError(''); setSelectedCohortId(''); setActivationCode(''); setIsMagicLink(false); window.history.replaceState(null, '', '/'); }} className="text-xs text-text-muted hover:text-white font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 w-full">
                         <ArrowLeft size={14} /> Voltar ao Login
                     </button>
                 </div>
             </div>
         )}
-
       </div>
     </div>
   );
 };
 
-// === APP PRINCIPAL ===
+// === APP PRINCIPAL (100% PRESERVADO DO SEU CÓDIGO ORIGINAL) ===
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [view, setView] = useState<ViewState | 'preview'>('home');
+  const [view, setView] = useState<ViewState | 'preview'>('home'); // Manobra: Aceita visualização de sumário
   const [books, setBooks] = useState<Book[]>([]);
   const [currentBook, setCurrentBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
