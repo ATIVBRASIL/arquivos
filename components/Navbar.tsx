@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Shield, Menu, X, LogOut, Bookmark, Home, Settings } from 'lucide-react';
+import { Shield, Menu, X, LogOut, Bookmark, Home, Settings } from 'lucide-react';
 import { EXTERNAL_TRAINING_URL } from '../constants';
 import { Button } from './Button';
 import { ViewState } from '../types';
@@ -9,7 +9,7 @@ interface NavbarProps {
   onLogout: () => void;
   isLoggedIn: boolean;
   currentView: ViewState;
-  isAdmin: boolean; // Propriedade vinda do App.tsx para controlar visibilidade
+  isAdmin: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onNavigate, onLogout, isLoggedIn, currentView, isAdmin }) => {
@@ -45,7 +45,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, onLogout, isLoggedIn
                 Início
               </button>
 
-              {/* BOTÃO ADMIN - Visível apenas para perfis autorizados pelo RPD */}
+              {/* BOTÃO ADMIN */}
               {isAdmin && (
                 <button 
                   onClick={() => onNavigate('admin')}
@@ -56,7 +56,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, onLogout, isLoggedIn
                 </button>
               )}
 
-              <button className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors">
+              {/* BOTÃO MINHA LISTA - OPERACIONALIZADO */}
+              <button 
+                onClick={() => onNavigate('my-list')}
+                className={`flex items-center gap-2 text-sm font-medium transition-colors ${currentView === 'my-list' ? 'text-amber-500' : 'text-text-secondary hover:text-text-primary'}`}
+              >
                 <Bookmark size={18} />
                 Minha Lista
               </button>
@@ -97,15 +101,22 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, onLogout, isLoggedIn
             <div className="flex flex-col gap-6">
               <button 
                 onClick={() => { onNavigate('home'); setIsMobileMenuOpen(false); }}
-                className="flex items-center gap-4 text-lg font-medium text-text-primary border-b border-graphite-700 pb-4"
+                className={`flex items-center gap-4 text-lg font-medium border-b border-graphite-700 pb-4 ${currentView === 'home' ? 'text-amber-500' : 'text-text-primary'}`}
               >
                 <Home size={24} /> Início
+              </button>
+
+              <button 
+                onClick={() => { onNavigate('my-list'); setIsMobileMenuOpen(false); }}
+                className={`flex items-center gap-4 text-lg font-medium border-b border-graphite-700 pb-4 ${currentView === 'my-list' ? 'text-amber-500' : 'text-text-primary'}`}
+              >
+                <Bookmark size={24} /> Minha Lista
               </button>
 
               {isAdmin && (
                 <button 
                   onClick={() => { onNavigate('admin'); setIsMobileMenuOpen(false); }}
-                  className="flex items-center gap-4 text-lg font-bold text-amber-500 border-b border-graphite-700 pb-4"
+                  className={`flex items-center gap-4 text-lg font-bold border-b border-graphite-700 pb-4 ${currentView === 'admin' ? 'text-amber-500' : 'text-amber-500/80'}`}
                 >
                   <Settings size={24} /> Painel Admin
                 </button>
@@ -113,7 +124,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, onLogout, isLoggedIn
             </div>
           )}
           <div className="mt-auto">
-             <Button variant="secondary" onClick={onLogout} fullWidth>Sair</Button>
+             <Button variant="secondary" onClick={onLogout} fullWidth>Sair do Sistema</Button>
           </div>
         </div>
       )}

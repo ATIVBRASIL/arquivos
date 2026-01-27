@@ -8,7 +8,7 @@ import { Button } from './components/Button';
 import { ValidateCertificate } from './components/ValidateCertificate';
 import { Shield, Loader2, MessageSquare, UserCheck, Save, Search, ChevronRight, BarChart3, Layers, PlayCircle, ArrowLeft } from 'lucide-react';
 
-// Importações
+// Importações de Inteligência e Dados
 import { Book, User, ViewState, UserRole, UserProgress } from './types'; 
 import { supabase } from './src/lib/supabase'; 
 import { TRACKS, groupBooksByTrack, TrackId } from './src/lib/tracks';
@@ -110,9 +110,9 @@ const App: React.FC = () => {
   const [selectedTrackId, setSelectedTrackId] = useState<TrackId | null>(null);
   const [trackSearchTerm, setTrackSearchTerm] = useState('');
   
-  // State de Progresso (Cursando e Certificados)
+  // State de Progresso (Sincronização Local e Remota)
   const [progress, setProgress] = useState<UserProgress>({ opened: {} });
-  const [completedBookIds, setCompletedBookIds] = useState<string[]>([]); // Nova Inteligência
+  const [completedBookIds, setCompletedBookIds] = useState<string[]>([]);
 
   // === HELPERS DE PROGRESSO ===
   const loadLocalProgress = (userId: string) => {
@@ -149,10 +149,10 @@ const App: React.FC = () => {
     localStorage.setItem(`ativ_progress_${user.id}`, JSON.stringify(newProgress));
   };
 
-  // Função para determinar o status do livro no card
+  // Determina visualmente a insígnia do manual no card [cite: 327, 328]
   const getBookStatus = (bookId: string): 'cursando' | 'certificado' | undefined => {
-    if (completedBookIds.includes(bookId)) return 'certificado';
-    if (progress.opened[bookId]) return 'cursando';
+    if (completedBookIds.includes(bookId)) return 'certificado'; // Prioridade: Missão Cumprida
+    if (progress.opened[bookId]) return 'cursando'; // Status: Em Operação
     return undefined;
   };
 
@@ -209,7 +209,7 @@ const App: React.FC = () => {
       return;
     }
 
-    // Busca Certificados Aprovados (Inteligência Central)
+    // Busca Certificados Aprovados no Banco de Dados 
     const { data: exams } = await supabase
       .from('user_exams')
       .select('ebook_id')
@@ -297,17 +297,20 @@ const App: React.FC = () => {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // === DADOS COMPUTADOS PARA A HOME ===
+  // === DADOS COMPUTADOS PARA A OPERAÇÃO === [cite: 347]
   const dashboardData = useMemo(() => {
     const openedCount = Object.keys(progress.opened).length;
     const booksByTrack = groupBooksByTrack(books);
     
-    // Recomendações: Livros recentes que ainda não foram certificados
+    // Sugestões: Manuais que o agente ainda não conquistou (Certificado)
     const recommendations = books
       .filter(b => !completedBookIds.includes(b.id))
       .slice(0, 6);
 
-    return { openedCount, booksByTrack, recommendations };
+    // MÁGICA: Filtra apenas manuais que o agente já iniciou (Histórico local)
+    const myHistory = books.filter(b => progress.opened[b.id]);
+
+    return { openedCount, booksByTrack, recommendations, myHistory };
   }, [books, progress, completedBookIds]);
 
   // === RENDERIZAÇÃO ===
@@ -459,7 +462,7 @@ const App: React.FC = () => {
                   <div key={book.id} className="min-w-[280px] md:min-w-[300px] snap-center">
                     <BookCard 
                       book={book}
-                      status={getBookStatus(book.id)} // Injeção de status
+                      status={getBookStatus(book.id)} // Injeção de tarja
                       onClick={(b) => {
                         markBookOpened(b.id);
                         setCurrentBook(b);
@@ -548,7 +551,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* === VIEW: TRACK === */}
+      {/* === VIEW: TRACK (DETALHE DA TRILHA) === */}
       {view === 'track' && selectedTrackId && (
         <div className="pt-24 px-6 max-w-7xl mx-auto space-y-8 animate-fade-in pb-20">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-graphite-800">
@@ -586,8 +589,8 @@ const App: React.FC = () => {
               .map(book => (
                 <BookCard 
                   key={book.id} 
-                  book={book} 
-                  status={getBookStatus(book.id)} // Injeção de status
+                  book={book}
+                  status={getBookStatus(book.id)} // Injeção de tarja
                   onClick={(b) => {
                     markBookOpened(b.id);
                     setCurrentBook(b);
@@ -600,7 +603,40 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* MODAIS E DASHBOARDS */}
+      {/* === VIEW: MINHA LISTA (HISTÓRICO OPERACIONAL) === */}
+      {view === 'my-list' && (
+        <div className="pt-24 px-6 max-w-7xl mx-auto space-y-8 animate-fade-in pb-20">
+          <div className="flex items-center gap-4 mb-8">
+            <button onClick={() => setView('home')} className="bg-graphite-800 p-2 rounded-full hover:bg-amber-500 hover:text-black transition-colors">
+              <ArrowLeft size={20} />
+            </button>
+            <h2 className="text-2xl font-display font-bold text-white uppercase tracking-tighter">Minha Lista de Estudos</h2>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            {dashboardData.myHistory.map(book => (
+              <BookCard 
+                key={book.id} 
+                book={book} 
+                status={getBookStatus(book.id)} 
+                onClick={(b) => {
+                  markBookOpened(b.id);
+                  setCurrentBook(b);
+                  setView('reader');
+                }} 
+              />
+            ))}
+            
+            {dashboardData.myHistory.length === 0 && (
+              <div className="col-span-full py-20 text-center text-text-muted italic border-2 border-dashed border-graphite-700 rounded-2xl">
+                Nenhum protocolo iniciado. Abra um manual no acervo para começar seu histórico.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAIS E DASHBOARDS DE COMANDO */}
       <button
         onClick={() => setIsSupportOpen(true)}
         className="fixed bottom-6 right-6 z-[100] bg-amber-500 hover:bg-amber-600 text-black p-4 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all hover:scale-110 active:scale-95 group"
