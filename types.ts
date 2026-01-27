@@ -1,16 +1,29 @@
 export type EbookLevel = 'Básico' | 'Intermediário' | 'Avançado';
 export type EbookStatus = 'draft' | 'published' | 'archived';
 
-// ATUALIZADO: Novas telas 'tracks' e 'track' adicionadas
+// Telas de navegação
 export type ViewState = 'home' | 'tracks' | 'track' | 'reader' | 'admin';
 
 export type UserRole = 'user' | 'admin' | 'editor';
+
+// === NOVA INTERFACE: TURMA ===
+export interface Cohort {
+  id: string;
+  name: string;
+  created_at: string;
+}
 
 export interface User {
   id: string;
   email: string;
   name: string;
   role: UserRole;
+  
+  // Controle de Acesso e Turmas
+  cohort_id?: string;        // ID da Turma a qual pertence
+  cohort_name?: string;      // Nome da Turma (para facilitar exibição)
+  expires_at?: string | null; // Data de expiração do acesso (null = vitalício)
+
   // Campos de Inteligência / Onboarding
   whatsapp?: string;
   occupation?: string;
@@ -33,7 +46,6 @@ export interface Book {
   quiz_data?: any;
 }
 
-// NOVO: Estrutura para salvar o progresso (MVP no LocalStorage)
 export interface UserProgress {
   opened: {
     [bookId: string]: {
