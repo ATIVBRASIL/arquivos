@@ -209,7 +209,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     fetchAllData();
   };
 
-  // === GERADOR DE LINK INDIVIDUAL (MÁGICO) ===
+  // === GERADOR DE LINK INDIVIDUAL (MÁGICO & CORRIGIDO) ===
   const generateMagicLink = async () => {
     setIsGeneratingLink(true);
     setGeneratedLink('');
@@ -217,30 +217,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
         const days = parseInt(quickValidity);
         let targetCohortId = '';
 
-        // 1. Procura ou cria turma genérica para essa validade
+        // 1. ESTRATÉGIA SEGURA: Consulta o Banco DIRETAMENTE (não confia no state local)
         const cohortName = `INDIVIDUAL - ${days} DIAS`;
-        const existingCohort = cohorts.find(c => c.name === cohortName && c.validity_days === days);
+        
+        // Tenta achar a turma no banco
+        const { data: existingCohort, error: searchError } = await supabase
+            .from('cohorts')
+            .select('id')
+            .eq('name', cohortName)
+            .eq('validity_days', days)
+            .maybeSingle();
 
         if (existingCohort) {
             targetCohortId = existingCohort.id;
         } else {
-            const { data, error } = await supabase.from('cohorts').insert([{ name: cohortName, validity_days: days }]).select().single();
-            if (error || !data) throw new Error('Erro ao criar grupo interno automático.');
-            targetCohortId = data.id;
+            // Se não existe, cria AGORA no banco
+            const { data: newCohort, error: createError } = await supabase
+                .from('cohorts')
+                .insert([{ name: cohortName, validity_days: days }])
+                .select()
+                .single();
+            
+            if (createError || !newCohort) throw new Error('Erro crítico ao criar grupo de validade.');
+            targetCohortId = newCohort.id;
+            
+            // Atualiza a lista local para refletir a nova turma
             fetchAllData(); 
         }
 
-        // 2. Gera código único e adiciona na whitelist
+        // 2. Gera código único e vincula à Turma confirmada
         const uniqueCode = `ATIV-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        
         const { error: wlError } = await supabase.from('whitelist').insert([{
-            cohort_id: targetCohortId,
+            cohort_id: targetCohortId, // ID confirmado do banco
             allowed_code: uniqueCode
         }]);
 
         if (wlError) throw wlError;
 
         // 3. Monta o Link
-        const link = `${window.location.origin}/?invite=${uniqueCode}&c=${targetCohortId}`;
+        const link = `${window.location.origin}/?invite=${uniqueCode}`;
         setGeneratedLink(link);
 
     } catch (err: any) {
@@ -632,7 +648,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                         <button onClick={exportToCSV} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold uppercase py-3 rounded flex items-center justify-center gap-2"><Download size={18} /> Baixar CSV</button>
                     </div>
                     <div className="bg-graphite-800 border border-graphite-700 p-6 rounded-xl flex flex-col justify-between">
-                         <div><h4 className="text-sm font-bold text-text-muted uppercase mb-2">Expansão de Efetivo</h4><p className="text-xs text-text-secondary mb-4">Adicionar matrículas (Unitário ou Lote).</p></div>
+                          <div><h4 className="text-sm font-bold text-text-muted uppercase mb-2">Expansão de Efetivo</h4><p className="text-xs text-text-secondary mb-4">Adicionar matrículas (Unitário ou Lote).</p></div>
                         <button onClick={() => setIsImporting(true)} className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold uppercase py-3 rounded flex items-center justify-center gap-2"><UserPlus size={18} /> Adicionar Agentes</button>
                     </div>
                 </div>
