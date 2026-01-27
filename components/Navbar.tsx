@@ -34,7 +34,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, onLogout, isLoggedIn
             </div>
             <div className="flex flex-col justify-center">
               <span className="font-display font-bold text-lg md:text-2xl tracking-tighter text-text-primary leading-none uppercase">
-                ARSENAL
+                ATIV
               </span>
               {/* O nome ATIV BRASIL foi removido aqui pois já consta na logo oficial */}
             </div>

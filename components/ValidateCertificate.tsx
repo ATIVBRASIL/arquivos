@@ -113,7 +113,7 @@ export const ValidateCertificate: React.FC = () => {
     <div className="min-h-screen bg-black text-text-primary flex items-center justify-center p-4 font-sans">
       <div className="w-full max-w-2xl bg-graphite-800/60 backdrop-blur-md border border-graphite-700 rounded-2xl shadow-2xl overflow-hidden">
         
-        {/* Cabeçalho de Autoridade - ARSENAL ATIV */}
+        {/* Cabeçalho de Autoridade - ATIV */}
         <div className="p-6 border-b border-graphite-700 flex items-center justify-between bg-graphite-900/40">
           <div className="flex items-center gap-4">
             <img 
@@ -123,7 +123,7 @@ export const ValidateCertificate: React.FC = () => {
             />
             <div className="flex flex-col">
               <div className="text-xl font-display font-bold uppercase tracking-tighter text-white leading-none">
-                ARSENAL
+                ATIV
               </div>
               <div className="text-[10px] text-amber-500 uppercase font-black tracking-widest mt-1">
                 Validação Pública

@@ -45,7 +45,7 @@ const LoginView: React.FC<{
             className="w-24 h-24 object-contain mb-4 drop-shadow-[0_0_10px_rgba(245,158,11,0.3)]" 
           />
           <h1 className="text-2xl font-bold text-text-primary uppercase tracking-tighter">
-            ARSENAL ATIV
+            ATIV
           </h1>
           <p className="text-xs text-text-muted italic">Operação de Inteligência Digital</p>
         </div>
