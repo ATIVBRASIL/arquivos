@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../src/lib/supabase';
 import { User, Book } from '../types';
 import { EbookForm } from './EbookForm';
-import { Shield, Search, X, MessageSquare, Award, TrendingUp, BookOpen, Plus, Trash2, Edit, Users } from 'lucide-react';
+import { Search, X, MessageSquare, Award, TrendingUp, BookOpen, Plus, Trash2, Edit, Users } from 'lucide-react';
 
 interface AdminDashboardProps {
   user: User;
@@ -22,23 +22,23 @@ interface ProfileData {
   created_at: string;
 }
 
-// Interface Ajustada para o Ranking (Tabela user_exams)
+// Interface para o Ranking (Tabela user_exams)
 interface UserExam {
   id: string;
   user_id: string;
   ebook_id: string;
   score: number;
-  status: string; // 'approved' | 'failed'
+  status: string; 
   created_at: string;
 }
 
-// CORREÇÃO TÁTICA: Interface ajustada para a tabela real 'messages'
+// Interface para mensagens de suporte
 interface SupportMessage {
   id: string;
-  email: string;      // Ajustado de user_email
-  full_name: string;  // Ajustado de user_name
-  subject: string;    // Novo campo
-  content: string;    // Ajustado de message
+  email: string;
+  full_name: string;
+  subject: string;
+  content: string;
   created_at: string;
   status: 'new' | 'read';
 }
@@ -73,14 +73,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
     try {
       // 1. Dados de Inteligência
       const { data: profilesData } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-      
-      // Busca Ranking (Correção anterior mantida)
       const { data: examsData } = await supabase.from('user_exams').select('*').order('created_at', { ascending: false });
 
       // 2. Dados de Conteúdo
       const { data: ebooksData } = await supabase.from('ebooks').select('*').order('created_at', { ascending: false });
 
-      // 3. Dados de Mensagens (CORREÇÃO AQUI: Tabela 'messages')
+      // 3. Dados de Mensagens
       const { data: msgsData } = await supabase.from('messages').select('*').order('created_at', { ascending: false });
 
       setProfiles(profilesData || []);
@@ -101,7 +99,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
         quiz_data: b.quiz_data
       }));
       setEbooks(formattedBooks);
-
       setMessages(msgsData || []);
 
     } catch (error) {
@@ -126,7 +123,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
   const handleDeleteMessage = async (id: string) => {
     if (!confirm('Excluir mensagem?')) return;
-    // CORREÇÃO: Deletar da tabela correta 'messages'
     await supabase.from('messages').delete().eq('id', id);
     fetchAllData();
   };
@@ -216,22 +212,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   return (
     <div className="fixed inset-0 z-50 bg-black text-text-primary overflow-y-auto animate-fade-in">
       
-      {/* CABEÇALHO GLOBAL */}
+      {/* CABEÇALHO GLOBAL - Dashboard de Comando com Logo Oficial e Sem Redundância */}
       <div className="sticky top-0 bg-graphite-900 border-b border-graphite-700 p-4 flex justify-between items-center z-20 shadow-xl">
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <div className="bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
-             <Shield className="text-amber-500" size={24} />
-            </div>
-            <div>
-              <h2 className="text-xl font-display font-bold text-white uppercase tracking-wider hidden md:block">
-                Comando & Controle
+          <div className="flex items-center gap-4">
+            <img 
+              src="/logo_ativ.png" 
+              alt="ATIV BRASIL" 
+              className="h-10 md:h-12 w-auto object-contain drop-shadow-[0_0_8px_rgba(245,158,11,0.2)]" 
+            />
+            <div className="flex flex-col justify-center">
+              <h2 className="text-xl md:text-2xl font-display font-bold text-white uppercase tracking-tighter leading-none">
+                COMANDO & CONTROLE
               </h2>
             </div>
           </div>
           
           {/* MENU PRINCIPAL */}
-          <div className="flex bg-black/50 p-1 rounded-lg border border-graphite-700">
+          <div className="flex bg-black/50 p-1 rounded-lg border border-graphite-700 ml-4">
             <button 
               onClick={() => setMainTab('intelligence')}
               className={`px-4 py-2 rounded-md text-xs font-bold uppercase transition-all flex items-center gap-2 ${mainTab === 'intelligence' ? 'bg-amber-500 text-black shadow-lg' : 'text-text-muted hover:text-white'}`}
@@ -260,7 +258,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
 
       <div className="max-w-7xl mx-auto p-6 space-y-8">
 
-        {/* INTELIGÊNCIA */}
+        {/* SEÇÃO: INTELIGÊNCIA */}
         {mainTab === 'intelligence' && (
           <>
             <div className="flex gap-4 border-b border-graphite-700 pb-1 mb-6">
@@ -334,7 +332,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
           </>
         )}
 
-        {/* ACERVO (PLAYBOOKS) */}
+        {/* SEÇÃO: ACERVO (PLAYBOOKS) */}
         {mainTab === 'content' && (
           <div className="animate-fade-in space-y-6">
             <div className="flex justify-between items-center">
@@ -382,7 +380,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
           </div>
         )}
 
-        {/* MENSAGENS (SUPORTE) */}
+        {/* SEÇÃO: MENSAGENS (SUPORTE) */}
         {mainTab === 'messages' && (
           <div className="animate-fade-in space-y-6">
               <h3 className="text-xl font-display font-bold text-white uppercase flex items-center gap-2">
