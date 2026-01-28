@@ -3,6 +3,9 @@ import { supabase } from '../src/lib/supabase';
 import { Book, Cohort, User } from '../types';
 import { EbookForm } from './EbookForm';
 import { MarketingManager } from './MarketingManager';
+// NOVOS IMPORTS:
+import { AdminHeader } from './admin/AdminHeader';
+import { AdminNavigation, MainTab } from './admin/AdminNavigation';
 
 import {
   AlertCircle,
@@ -30,6 +33,7 @@ interface AdminDashboardProps {
   onClose: () => void;
 }
 
+// ... (MANTENHA AS INTERFACES ProfileData, UserExam, SupportMessage, WhitelistItem AQUI) ...
 interface ProfileData {
   id: string;
   email: string;
@@ -73,7 +77,6 @@ interface WhitelistItem {
   created_at: string;
 }
 
-type MainTab = 'intelligence' | 'content' | 'messages' | 'cohorts' | 'quick_access' | 'marketing';
 type SubTab = 'users' | 'ranking' | 'alerts';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onClose }) => {
@@ -81,6 +84,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onClose })
   const [mainTab, setMainTab] = useState<MainTab>('intelligence');
   const [subTab, setSubTab] = useState<SubTab>('users');
 
+  // ... (MANTENHA TODO O RESTANTE DA LÓGICA DE ESTADOS, FETCH, ACTIONS, ETC. INTACTO ATÉ O RETURN) ...
   // --- ESTADOS DE DADOS ---
   const [profiles, setProfiles] = useState<ProfileData[]>([]);
   const [attempts, setAttempts] = useState<UserExam[]>([]);
@@ -560,91 +564,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onClose })
   // === RENDER: DASHBOARD PRINCIPAL ===
   return (
     <div className="fixed inset-0 z-50 bg-black text-text-primary overflow-y-auto animate-fade-in">
-      {/* HEADER */}
-      <div className="sticky top-0 bg-graphite-900 border-b border-graphite-700 p-4 flex flex-col md:flex-row justify-between items-center z-20 shadow-xl gap-4">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-4">
-            <img
-              src="/logo_ativ.png"
-              alt="ATIV"
-              className="h-10 md:h-12 w-auto object-contain drop-shadow-[0_0_8px_rgba(245,158,11,0.2)]"
-            />
-            <div className="flex flex-col justify-center">
-              <h2 className="text-xl md:text-2xl font-display font-bold text-white uppercase tracking-tighter leading-none">
-                COMANDO & CONTROLE
-              </h2>
-              <span className="text-[10px] text-text-muted uppercase font-bold">
-                Operador: {user?.name || 'ADMIN'}
-              </span>
-            </div>
-          </div>
-
-          {/* NAV TABS */}
-          <div className="flex bg-black/50 p-1 rounded-lg border border-graphite-700 md:ml-4 overflow-x-auto max-w-[280px] md:max-w-none">
-            <button
-              onClick={() => setMainTab('intelligence')}
-              className={`px-4 py-2 rounded-md text-xs font-bold uppercase whitespace-nowrap flex gap-2 ${
-                mainTab === 'intelligence' ? 'bg-amber-500 text-black shadow-lg' : 'text-text-muted hover:text-white'
-              }`}
-            >
-              <Users size={16} /> <span className="hidden sm:inline">Inteligência</span>
-            </button>
-
-            <button
-              onClick={() => setMainTab('quick_access')}
-              className={`px-4 py-2 rounded-md text-xs font-bold uppercase whitespace-nowrap flex gap-2 ${
-                mainTab === 'quick_access' ? 'bg-green-500 text-black shadow-lg' : 'text-text-muted hover:text-white'
-              }`}
-            >
-              <LinkIcon size={16} /> <span className="hidden sm:inline">Acesso Rápido</span>
-            </button>
-
-            <button
-              onClick={() => setMainTab('cohorts')}
-              className={`px-4 py-2 rounded-md text-xs font-bold uppercase whitespace-nowrap flex gap-2 ${
-                mainTab === 'cohorts' ? 'bg-amber-500 text-black shadow-lg' : 'text-text-muted hover:text-white'
-              }`}
-            >
-              <Layers size={16} /> <span className="hidden sm:inline">Turmas</span>
-            </button>
-
-            <button
-              onClick={() => setMainTab('content')}
-              className={`px-4 py-2 rounded-md text-xs font-bold uppercase whitespace-nowrap flex gap-2 ${
-                mainTab === 'content' ? 'bg-amber-500 text-black shadow-lg' : 'text-text-muted hover:text-white'
-              }`}
-            >
-              <BookOpen size={16} /> <span className="hidden sm:inline">Acervo</span>
-            </button>
-
-            <button
-              onClick={() => setMainTab('messages')}
-              className={`px-4 py-2 rounded-md text-xs font-bold uppercase whitespace-nowrap flex gap-2 ${
-                mainTab === 'messages' ? 'bg-amber-500 text-black shadow-lg' : 'text-text-muted hover:text-white'
-              }`}
-            >
-              <MessageSquare size={16} /> <span className="hidden sm:inline">Mensagens</span>
-            </button>
-
-            {/* ✅ BOTÃO MKT */}
-            <button
-              onClick={() => setMainTab('marketing')}
-              className={`px-4 py-2 rounded-md text-xs font-bold uppercase whitespace-nowrap flex gap-2 ${
-                mainTab === 'marketing' ? 'bg-amber-500 text-black shadow-lg' : 'text-text-muted hover:text-white'
-              }`}
-            >
-              <TrendingUp size={16} /> <span className="hidden sm:inline">Marketing</span>
-            </button>
-          </div>
-        </div>
-
-        <button
-          onClick={onClose}
-          className="p-2 hover:bg-graphite-800 rounded-full transition-colors text-text-muted hover:text-white"
-        >
-          <X size={24} />
-        </button>
-      </div>
+      {/* 🎯 HEADER + NAVEGAÇÃO REORGANIZADOS */}
+      <AdminHeader user={user} onClose={onClose}>
+        <AdminNavigation activeTab={mainTab} onChange={setMainTab} />
+      </AdminHeader>
 
       <div className="max-w-7xl mx-auto p-6 space-y-8">
         {/* ABA: ACESSO RÁPIDO (LINK MÁGICO) */}
