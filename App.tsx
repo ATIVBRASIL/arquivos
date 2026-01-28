@@ -8,6 +8,7 @@ import { SupportModal } from './components/SupportModal';
 import { Button } from './components/Button';
 import { ValidateCertificate } from './components/ValidateCertificate';
 import { BannerCarousel, BannerSlide } from './components/BannerCarousel';
+import { ToastProvider } from './components/ui/ToastSystem';
 import {
   Shield,
   Loader2,
@@ -680,6 +681,15 @@ const App: React.FC = () => {
     return { openedCount, booksByTrack, recommendations, myHistory };
   }, [books, progress, completedBookIds]);
 
+  // 🛡️ SEGURANÇA DE PERÍMETRO (O Porteiro)
+  // Tradução: "Se a visão for 'admin', mas o usuário não for 'admin', expulse-o."
+  useEffect(() => {
+    if (view === 'admin' && user && user.role !== 'admin') {
+      alert('ACESSO NEGADO: Nível de autorização insuficiente.');
+      setView('home'); // Manda de volta para o início
+    }
+  }, [view, user]); // O porteiro fica vigiando sempre que a 'view' ou o 'user' mudam
+
   // === RENDERIZAÇÃO ===
   if (loading && !isValidationRoute) {
     return (
@@ -708,24 +718,25 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="bg-black min-h-screen text-text-primary relative pb-20">
-      {/* ONBOARDING MODAL */}
-      {isProfileIncomplete && (
-        <div className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-graphite-800 border-2 border-amber-500 p-8 rounded-2xl shadow-[0_0_50px_rgba(245,158,11,0.2)] animate-fade-in-up">
-            <div className="flex flex-col items-center text-center mb-6">
-              <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mb-4">
-                <UserCheck size={32} className="text-amber-500" />
+    <ToastProvider>
+      <div className="bg-black min-h-screen text-text-primary relative pb-20">
+        {/* ONBOARDING MODAL */}
+        {isProfileIncomplete && (
+          <div className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className="w-full max-w-md bg-graphite-800 border-2 border-amber-500 p-8 rounded-2xl shadow-[0_0_50px_rgba(245,158,11,0.2)] animate-fade-in-up">
+              <div className="flex flex-col items-center text-center mb-6">
+                <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mb-4">
+                  <UserCheck size={32} className="text-amber-500" />
+                </div>
+                <h2 className="text-xl font-bold font-display text-white uppercase tracking-wider">Credenciamento Oficial</h2>
+                <div className="flex gap-2 mt-4 mb-2">
+                  <div className={`h-1 w-12 rounded-full ${onboardingStep === 1 ? 'bg-amber-500' : 'bg-graphite-600'}`}></div>
+                  <div className={`h-1 w-12 rounded-full ${onboardingStep === 2 ? 'bg-amber-500' : 'bg-graphite-600'}`}></div>
+                </div>
+                <p className="text-text-secondary text-xs mt-2">
+                  {onboardingStep === 1 ? 'Identificação & Contato' : 'Perfil Operacional'}
+                </p>
               </div>
-              <h2 className="text-xl font-bold font-display text-white uppercase tracking-wider">Credenciamento Oficial</h2>
-              <div className="flex gap-2 mt-4 mb-2">
-                <div className={`h-1 w-12 rounded-full ${onboardingStep === 1 ? 'bg-amber-500' : 'bg-graphite-600'}`}></div>
-                <div className={`h-1 w-12 rounded-full ${onboardingStep === 2 ? 'bg-amber-500' : 'bg-graphite-600'}`}></div>
-              </div>
-              <p className="text-text-secondary text-xs mt-2">
-                {onboardingStep === 1 ? 'Identificação & Contato' : 'Perfil Operacional'}
-              </p>
-            </div>
 
             <form onSubmit={handleSaveProfile} className="space-y-4">
               {onboardingStep === 1 && (
@@ -1065,9 +1076,12 @@ const App: React.FC = () => {
         />
       )}
 
-      {view === 'reader' && currentBook && <Reader book={currentBook} user={user} onClose={() => setView('home')} />}
+{view === 'reader' && currentBook && <Reader book={currentBook} user={user} onClose={() => setView('home')} />}
       {view === 'admin' && <AdminDashboard user={user} onClose={() => setView('home')} />}
     </div>
+    
+    {/* 👇 AQUI ESTAVA FALTANDO O FECHAMENTO DA CAIXA 👇 */}
+    </ToastProvider>
   );
 };
 
