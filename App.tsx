@@ -425,6 +425,9 @@ const App: React.FC = () => {
     goal: 'Especialização Técnica',
   });
 
+  // NOVO: Estado para guardar os banners que vêm do banco de dados
+  const [dynamicBanners, setDynamicBanners] = useState<BannerSlide[]>([]);
+
   // Novos States de Navegação
   const [selectedTrackId, setSelectedTrackId] = useState<TrackId | null>(null);
   const [trackSearchTerm, setTrackSearchTerm] = useState('');
@@ -540,6 +543,28 @@ const App: React.FC = () => {
       );
     }
   };
+  // NOVO: Função para buscar os banners de marketing ativos no banco
+  const fetchMarketingBanners = async () => {
+    const { data, error } = await supabase
+      .from('marketing_banners')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    if (!error && data) {
+      setDynamicBanners(
+        data.map((b: any) => ({
+          id: b.id,
+          title: b.title,
+          subtitle: b.subtitle,
+          cta: b.cta,
+          url: b.url,
+          imageUrl: b.image_url,
+          badge: b.badge,
+        }))
+      );
+    }
+  };
 
   const loadProfile = async (authUser: any) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', authUser.id).single<Profile>();
@@ -622,7 +647,10 @@ const App: React.FC = () => {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.user) loadProfile(data.session.user);
+      if (data.session?.user) {
+        loadProfile(data.session.user);
+        fetchMarketingBanners(); // <--- CHAMA A BUSCA DOS BANNERS AQUI
+      }
       else setLoading(false);
     });
 
@@ -815,8 +843,11 @@ const App: React.FC = () => {
       {view === 'home' && !isProfileIncomplete && (
   <div className="pt-24 px-6 max-w-7xl mx-auto space-y-10 animate-fade-in pb-10">
     
-    {/* 🎯 BANNER CARROSSEL */}
-    <BannerCarousel slides={bannerSlides} intervalMs={5000} />
+    {/* 🎯 BANNER CARROSSEL: Usa banners do banco; se não houver, usa os fixos como reserva */}
+    <BannerCarousel 
+      slides={dynamicBanners.length > 0 ? dynamicBanners : bannerSlides} 
+      intervalMs={5000} 
+    />
 
     {dashboardData.recommendations.length > 0 && (
       <section>

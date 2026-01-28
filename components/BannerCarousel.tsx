@@ -16,6 +16,29 @@ type Props = {
   intervalMs?: number; // default 5000
 };
 
+/**
+ * Normaliza URL externa para evitar navegação “interna” acidental (ex: "www.site.com" vira /www.site.com).
+ * - trim
+ * - adiciona https:// quando não houver protocolo
+ * - rejeita protocolos não http(s) por segurança
+ */
+function normalizeExternalUrl(raw?: string): string {
+  const u = (raw ?? '').trim();
+  if (!u) return '';
+
+  // Bloqueia protocolos potencialmente perigosos
+  if (/^(javascript|data|vbscript):/i.test(u)) return '';
+
+  // Já é http(s)
+  if (/^https?:\/\//i.test(u)) return u;
+
+  // Se começar com //, assume https
+  if (/^\/\//.test(u)) return `https:${u}`;
+
+  // Caso comum: domínio sem protocolo
+  return `https://${u}`;
+}
+
 export const BannerCarousel: React.FC<Props> = ({ slides, intervalMs = 5000 }) => {
   const safeSlides = useMemo(() => (Array.isArray(slides) ? slides.filter(Boolean) : []), [slides]);
   const [index, setIndex] = useState(0);
@@ -64,7 +87,8 @@ export const BannerCarousel: React.FC<Props> = ({ slides, intervalMs = 5000 }) =
 
   const backgroundStyle: React.CSSProperties = slide.imageUrl
     ? {
-        backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.78), rgba(0,0,0,0.45)), url(${slide.imageUrl})`,
+        // NOVO: Adicionamos aspas simples '${slide.imageUrl}' para proteger o link
+        backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.78), rgba(0,0,0,0.45)), url('${slide.imageUrl}')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }
@@ -72,6 +96,21 @@ export const BannerCarousel: React.FC<Props> = ({ slides, intervalMs = 5000 }) =
         backgroundImage:
           'radial-gradient(circle at 20% 10%, rgba(245,158,11,0.22), transparent 40%), radial-gradient(circle at 80% 50%, rgba(255,255,255,0.06), transparent 45%), linear-gradient(135deg, rgba(17,17,17,1), rgba(0,0,0,1))',
       };
+
+  const href = normalizeExternalUrl(slide.url);
+  const hasHref = Boolean(href);
+
+  const openExternal = (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!hasHref) {
+      alert('Banner sem URL configurada no painel.');
+      return;
+    }
+    window.open(href, '_blank', 'noopener,noreferrer');
+  };
 
   return (
     <section className="w-full">
@@ -95,7 +134,22 @@ export const BannerCarousel: React.FC<Props> = ({ slides, intervalMs = 5000 }) =
           else prev();
         }}
       >
-        <a href={slide.url} target="_blank" rel="noreferrer" className="block" aria-label={slide.title}>
+        {/* Link “wrapper” preservado, mas agora com URL normalizada + fallback de clique */}
+        <a
+          href={hasHref ? href : undefined}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block"
+          aria-label={slide.title}
+          onClick={(e) => {
+            // Se não tiver href, bloqueia navegação e informa.
+            if (!hasHref) {
+              e.preventDefault();
+              e.stopPropagation();
+              alert('Banner sem URL configurada no painel.');
+            }
+          }}
+        >
           <div className="p-5 md:p-6" style={backgroundStyle}>
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
@@ -113,10 +167,16 @@ export const BannerCarousel: React.FC<Props> = ({ slides, intervalMs = 5000 }) =
 
                 <p className="mt-2 text-xs md:text-sm text-text-secondary max-w-[58ch]">{slide.subtitle}</p>
 
-                <div className="mt-4 inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-black font-black uppercase tracking-wider text-[11px] px-4 py-2 rounded-lg transition-colors">
+                {/* CTA mantém visual idêntico, mas agora garante abertura externa mesmo em edge-cases */}
+                <button
+                  type="button"
+                  onClick={openExternal}
+                  className="mt-4 inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-black font-black uppercase tracking-wider text-[11px] px-4 py-2 rounded-lg transition-colors"
+                  aria-label={slide.cta}
+                >
                   <ExternalLink size={16} />
                   {slide.cta}
-                </div>
+                </button>
               </div>
 
               {count > 1 && (
@@ -165,11 +225,12 @@ export const BannerCarousel: React.FC<Props> = ({ slides, intervalMs = 5000 }) =
                   i === index ? 'w-10 bg-amber-500' : 'w-4 bg-white/20 hover:bg-white/35'
                 }`}
                 aria-label={`Ir para banner ${i + 1}`}
+                title={`Ir para banner ${i + 1}`}
               />
             ))}
           </div>
         )}
-      </div>      
+      </div>
     </section>
   );
 };
