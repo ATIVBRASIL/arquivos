@@ -7,6 +7,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { SupportModal } from './components/SupportModal';
 import { Button } from './components/Button';
 import { ValidateCertificate } from './components/ValidateCertificate';
+import { BannerCarousel, BannerSlide } from './components/BannerCarousel';
 import {
   Shield,
   Loader2,
@@ -432,6 +433,33 @@ const App: React.FC = () => {
   const [progress, setProgress] = useState<UserProgress>({ opened: {} });
   const [completedBookIds, setCompletedBookIds] = useState<string[]>([]);
 
+  const bannerSlides: BannerSlide[] = [
+    {
+      id: 'presencial',
+      badge: 'PRESENCIAL',
+      title: 'TREINAMENTO PRESENCIAL ATIV',
+      subtitle: 'Convocação aberta. Prepare o operador para o mundo real com doutrina, técnica e disciplina.',
+      cta: 'VER PRÓXIMAS DATAS',
+      url: 'https://ativbrasil.com.br',
+    },
+    {
+      id: 'novidade',
+      badge: 'NOVIDADE',
+      title: 'NOVO PROTOCOLO DISPONÍVEL',
+      subtitle: 'Atualização do acervo. Operação baseada em cenário e tomada de decisão sob pressão.',
+      cta: 'VER DETALHES',
+      url: 'https://ativbrasil.com.br',
+    },
+    {
+      id: 'consultoria',
+      badge: 'B2B',
+      title: 'CONSULTORIA PARA EMPRESAS',
+      subtitle: 'Diagnóstico, padronização e implementação de protocolos para equipes de segurança.',
+      cta: 'FALAR COM ATIV',
+      url: 'https://ativbrasil.com.br',
+    },
+  ];
+
   // === HELPERS DE PROGRESSO ===
   const loadLocalProgress = (userId: string) => {
     try {
@@ -785,35 +813,17 @@ const App: React.FC = () => {
 
       {/* === VIEW: HOME (PAINEL TÁTICO) === */}
       {view === 'home' && !isProfileIncomplete && (
-        <div className="pt-24 px-6 max-w-7xl mx-auto space-y-10 animate-fade-in pb-10">
-          {/* ✅ CARDS MENORES (OPÇÃO A) */}
-          <section className="grid grid-cols-2 gap-3 md:gap-4">
-            <div className="bg-graphite-800 border border-graphite-700 p-4 md:p-5 rounded-2xl flex flex-col justify-between">
-              <div className="flex items-center gap-2 text-text-muted mb-1">
-                <BarChart3 size={14} className="text-amber-500" />
-                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest">
-                  Protocolos Iniciados
-                </span>
-              </div>
-              <div className="text-2xl md:text-3xl font-display font-bold text-white">{dashboardData.openedCount}</div>
-            </div>
+  <div className="pt-24 px-6 max-w-7xl mx-auto space-y-10 animate-fade-in pb-10">
+    
+    {/* 🎯 BANNER CARROSSEL */}
+    <BannerCarousel slides={bannerSlides} intervalMs={5000} />
 
-            <div className="bg-graphite-800 border border-graphite-700 p-4 md:p-5 rounded-2xl flex flex-col justify-between">
-              <div className="flex items-center gap-2 text-text-muted mb-1">
-                <Layers size={14} className="text-amber-500" />
-                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest">
-                  Certificados Ativos
-                </span>
-              </div>
-              <div className="text-2xl md:text-3xl font-display font-bold text-white">{completedBookIds.length}</div>
-            </div>
-          </section>
+    {dashboardData.recommendations.length > 0 && (
+      <section>
+        <h2 className="text-lg font-display font-bold text-amber-500 uppercase mb-4 flex items-center gap-2">
+          <PlayCircle size={20} /> Sugestões do Comando
+        </h2>
 
-          {dashboardData.recommendations.length > 0 && (
-            <section>
-              <h2 className="text-lg font-display font-bold text-amber-500 uppercase mb-4 flex items-center gap-2">
-                <PlayCircle size={20} /> Sugestões do Comando
-              </h2>
 
               <div className="flex overflow-x-auto gap-4 pb-6 snap-x snap-mandatory scroll-smooth -mx-6 px-6 md:mx-0 md:px-0">
                 {dashboardData.recommendations.map((book) => (
