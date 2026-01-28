@@ -2,7 +2,7 @@ name: Deploy to Firebase Hosting
 on:
   push:
     branches:
-      - main # Garanta que sua branch principal se chama 'main'
+      - main
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
@@ -16,9 +16,5 @@ jobs:
         run: npm run build
 
       - name: Deploy to Firebase
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_ARQUIVOS_90716218 }}'
-          channelId: live
-          projectId: arquivos-90716218
+        # Usamos a variável secreta que você salvou no GitHub
+        run: npx firebase-tools deploy --token ${{ secrets.FIREBASE_TOKEN }} --non-interactive
