@@ -1,9 +1,10 @@
 {
   "hosting": {
+    "site": "ativ-brasil-escrita",
     "public": "dist",
     "ignore": [
       "firebase.json",
-      "**/.*",
+      "**/*",
       "**/node_modules/**"
     ],
     "rewrites": [
