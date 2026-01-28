@@ -112,24 +112,24 @@ const LoginView: React.FC<{
         .single();
 
       const days = cohortData?.validity_days || 365;
-      
+
       // Se a validade for maior que 20 mil dias (ex: 100 anos), damos o Crachá Vitalício
-      const isLifetime = days > 20000; 
-      
+      const isLifetime = days > 20000;
+
       let finalExpiration: string | null = null;
 
       // Se NÃO for vitalício, calculamos a data de vencimento. Se for, fica NULL.
       if (!isLifetime) {
-         const dateCalc = new Date();
-         dateCalc.setDate(dateCalc.getDate() + days);
-         finalExpiration = dateCalc.toISOString();
+        const dateCalc = new Date();
+        dateCalc.setDate(dateCalc.getDate() + days);
+        finalExpiration = dateCalc.toISOString();
       }
 
       // 3. ETAPA 1: Criar o Login (Auth)
       // Enviamos APENAS email e senha. O "Porteiro Simples" (SQL) vai deixar entrar sem erro.
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
-        password: password
+        password: password,
         // IMPORTANTE: Não enviamos 'options.data' aqui para não conflitar com o Trigger SQL
       });
 
@@ -146,13 +146,13 @@ const LoginView: React.FC<{
             ticket_code: inviteCode.trim().toUpperCase(),
             role: 'user',
             is_active: true,
-            is_lifetime: isLifetime,     // <--- NOVA LINHA: Crachá Vitalício
+            is_lifetime: isLifetime, // <--- NOVA LINHA: Crachá Vitalício
             expires_at: finalExpiration, // <--- NOVA LINHA: Data correta ou Null
           })
           .eq('id', authData.user.id);
 
         if (updateError) {
-          console.error("Aviso: Usuário criado, mas erro ao atualizar perfil.", updateError);
+          console.error('Aviso: Usuário criado, mas erro ao atualizar perfil.', updateError);
           // Não lançamos erro fatal aqui para não bloquear o usuário que já criou login.
           // O Admin pode corrigir depois se necessário.
         } else {
@@ -166,7 +166,6 @@ const LoginView: React.FC<{
         // Sucesso Total! Recarrega a página para entrar no sistema.
         window.location.reload();
       }
-
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Erro ao realizar cadastro.' });
     } finally {
@@ -486,8 +485,7 @@ const App: React.FC = () => {
   }, []);
 
   const isValidationRoute =
-    typeof window !== 'undefined' &&
-    window.location.pathname.replace(/\/+$/, '').endsWith('/validar');
+    typeof window !== 'undefined' && window.location.pathname.replace(/\/+$/, '').endsWith('/validar');
 
   const fetchRealContent = async () => {
     const { data, error } = await supabase
@@ -516,11 +514,7 @@ const App: React.FC = () => {
   };
 
   const loadProfile = async (authUser: any) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', authUser.id)
-      .single<Profile>();
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', authUser.id).single<Profile>();
 
     if (error || !data) {
       setAuthError('Perfil não autorizado.');
@@ -667,9 +661,7 @@ const App: React.FC = () => {
               <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mb-4">
                 <UserCheck size={32} className="text-amber-500" />
               </div>
-              <h2 className="text-xl font-bold font-display text-white uppercase tracking-wider">
-                Credenciamento Oficial
-              </h2>
+              <h2 className="text-xl font-bold font-display text-white uppercase tracking-wider">Credenciamento Oficial</h2>
               <div className="flex gap-2 mt-4 mb-2">
                 <div className={`h-1 w-12 rounded-full ${onboardingStep === 1 ? 'bg-amber-500' : 'bg-graphite-600'}`}></div>
                 <div className={`h-1 w-12 rounded-full ${onboardingStep === 2 ? 'bg-amber-500' : 'bg-graphite-600'}`}></div>
@@ -780,7 +772,6 @@ const App: React.FC = () => {
           currentView={view as any}
           isLoggedIn={true}
           onLogout={async () => {
-            // CORREÇÃO: Limpa o estado local para logout imediato
             await supabase.auth.signOut();
             setUser(null);
           }}
@@ -795,20 +786,26 @@ const App: React.FC = () => {
       {/* === VIEW: HOME (PAINEL TÁTICO) === */}
       {view === 'home' && !isProfileIncomplete && (
         <div className="pt-24 px-6 max-w-7xl mx-auto space-y-10 animate-fade-in pb-10">
-          <section className="grid grid-cols-2 gap-4">
-            <div className="bg-graphite-800 border border-graphite-700 p-6 rounded-2xl flex flex-col justify-between">
-              <div className="flex items-center gap-2 text-text-muted mb-2">
-                <BarChart3 size={16} className="text-amber-500" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Protocolos Iniciados</span>
+          {/* ✅ CARDS MENORES (OPÇÃO A) */}
+          <section className="grid grid-cols-2 gap-3 md:gap-4">
+            <div className="bg-graphite-800 border border-graphite-700 p-4 md:p-5 rounded-2xl flex flex-col justify-between">
+              <div className="flex items-center gap-2 text-text-muted mb-1">
+                <BarChart3 size={14} className="text-amber-500" />
+                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest">
+                  Protocolos Iniciados
+                </span>
               </div>
-              <div className="text-3xl font-display font-bold text-white">{dashboardData.openedCount}</div>
+              <div className="text-2xl md:text-3xl font-display font-bold text-white">{dashboardData.openedCount}</div>
             </div>
-            <div className="bg-graphite-800 border border-graphite-700 p-6 rounded-2xl flex flex-col justify-between">
-              <div className="flex items-center gap-2 text-text-muted mb-2">
-                <Layers size={16} className="text-amber-500" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Certificados Ativos</span>
+
+            <div className="bg-graphite-800 border border-graphite-700 p-4 md:p-5 rounded-2xl flex flex-col justify-between">
+              <div className="flex items-center gap-2 text-text-muted mb-1">
+                <Layers size={14} className="text-amber-500" />
+                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest">
+                  Certificados Ativos
+                </span>
               </div>
-              <div className="text-3xl font-display font-bold text-white">{completedBookIds.length}</div>
+              <div className="text-2xl md:text-3xl font-display font-bold text-white">{completedBookIds.length}</div>
             </div>
           </section>
 
@@ -826,7 +823,7 @@ const App: React.FC = () => {
                       status={getBookStatus(book.id)}
                       onClick={(b) => {
                         setCurrentBook(b);
-                        setView('preview'); // MANOBRA: Vai para o Sumário primeiro
+                        setView('preview');
                       }}
                     />
                   </div>
@@ -840,10 +837,7 @@ const App: React.FC = () => {
               <h2 className="text-lg font-display font-bold text-white uppercase flex items-center gap-2">
                 <Layers size={20} className="text-amber-500" /> Trilhas Operacionais
               </h2>
-              <button
-                onClick={() => setView('tracks')}
-                className="text-xs text-amber-500 font-bold uppercase hover:underline"
-              >
+              <button onClick={() => setView('tracks')} className="text-xs text-amber-500 font-bold uppercase hover:underline">
                 Ver Todas
               </button>
             </div>
@@ -867,9 +861,7 @@ const App: React.FC = () => {
                     </div>
 
                     <div className="flex items-center justify-between mt-2">
-                      <span className="text-[10px] font-black bg-black/40 px-2 py-1 rounded text-text-secondary">
-                        {count} ARQ.
-                      </span>
+                      <span className="text-[10px] font-black bg-black/40 px-2 py-1 rounded text-text-secondary">{count} ARQ.</span>
                       <ChevronRight className="text-graphite-600 group-hover:text-amber-500" size={16} />
                     </div>
                   </button>
@@ -936,9 +928,7 @@ const App: React.FC = () => {
               <h2 className="text-3xl font-display font-bold text-amber-500 uppercase leading-none">
                 {TRACKS.find((t) => t.id === selectedTrackId)?.title}
               </h2>
-              <p className="text-text-secondary text-sm max-w-2xl">
-                {TRACKS.find((t) => t.id === selectedTrackId)?.description}
-              </p>
+              <p className="text-text-secondary text-sm max-w-2xl">{TRACKS.find((t) => t.id === selectedTrackId)?.description}</p>
             </div>
 
             <div className="w-full md:w-80 relative">
@@ -968,7 +958,7 @@ const App: React.FC = () => {
                   status={getBookStatus(book.id)}
                   onClick={(b) => {
                     setCurrentBook(b);
-                    setView('preview'); // MANOBRA: Vai para o Sumário primeiro
+                    setView('preview');
                   }}
                 />
               ))}
@@ -986,9 +976,7 @@ const App: React.FC = () => {
             >
               <ArrowLeft size={20} />
             </button>
-            <h2 className="text-2xl font-display font-bold text-white uppercase tracking-tighter">
-              Minha Lista de Estudos
-            </h2>
+            <h2 className="text-2xl font-display font-bold text-white uppercase tracking-tighter">Minha Lista de Estudos</h2>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
@@ -999,7 +987,7 @@ const App: React.FC = () => {
                 status={getBookStatus(book.id)}
                 onClick={(b) => {
                   setCurrentBook(b);
-                  setView('preview'); // MANOBRA: Vai para o Sumário primeiro
+                  setView('preview');
                 }}
               />
             ))}
@@ -1030,7 +1018,7 @@ const App: React.FC = () => {
           user={user}
           onClose={() => setView('home')}
           onStart={(b) => {
-            markBookOpened(b.id); // SÓ MARCA COMO CURSANDO AQUI
+            markBookOpened(b.id);
             setView('reader');
           }}
         />
