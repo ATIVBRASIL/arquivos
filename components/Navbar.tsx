@@ -139,15 +139,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Actions */}
           <div className="flex items-center gap-4">
-            <a
-              href={EXTERNAL_TRAINING_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="hidden md:flex bg-amber-500 hover:bg-amber-600 text-black-900 font-bold font-sans text-sm px-5 py-2 rounded-lg transition-all shadow-[0_0_15px_rgba(255,159,28,0.2)]"
-            >
-              TREINAMENTOS
-            </a>
-
+            
             {isLoggedIn && (
               <button
                 onClick={onLogout}
