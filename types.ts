@@ -10,6 +10,7 @@ export type UserRole = 'user' | 'admin' | 'editor';
 export interface Cohort {
   id: string;
   name: string;
+  validity_days: number; // <--- Adicione esta linha
   created_at: string;
 }
 
