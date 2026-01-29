@@ -1,3 +1,4 @@
+// TESTE-GIT-123
 import React, { useEffect, useState, useMemo } from 'react';
 import { Navbar } from './components/Navbar';
 import { BookCard } from './components/BookCard';
@@ -79,101 +80,84 @@ const LoginView: React.FC<{
     setMessage(null);
   }, [mode]);
 
-  // === AÇÃO DE CADASTRO SEGURA (2 ETAPAS - CORREÇÃO CRÍTICA) ===
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setMessage(null);
+  // === AÇÃO DE CADASTRO SEGURA (2 ETAPAS - AGORA COM RPC BLINDADA) ===
+const handleRegister = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsLoading(true);
+  setMessage(null);
 
-    if (password.length < 6) {
-      setMessage({ type: 'error', text: 'A senha deve ter no mínimo 6 caracteres.' });
-      setIsLoading(false);
-      return;
+  if (password.length < 6) {
+    setMessage({ type: 'error', text: 'A senha deve ter no mínimo 6 caracteres.' });
+    setIsLoading(false);
+    return;
+  }
+
+  const cleanedCode = (inviteCode || '').trim().toUpperCase();
+
+  try {
+    // 1) PRÉ-CHECK: evita criar login se a matrícula for inválida/queimada
+    const { data: wl, error: wlError } = await supabase
+      .from('whitelist')
+      .select('id')
+      .eq('allowed_code', cleanedCode)
+      .is('used_at', null)
+      .single();
+
+    if (wlError || !wl) {
+      throw new Error('Matrícula inválida ou já utilizada.');
     }
 
-    try {
-      // 1. Validar Código de Convite (Whitelist)
-      // Isso garante que só entra quem tem convite VÁLIDO.
-      const { data: whitelistData, error: whitelistError } = await supabase
-        .from('whitelist')
-        .select('*')
-        .eq('allowed_code', inviteCode.trim().toUpperCase())
-        .is('used_at', null)
-        .single();
+    // 2) ETAPA 1: Criar Login (Auth)
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      // Não enviar options.data (mantém compatibilidade com seu fluxo atual)
+    });
 
-      if (whitelistError || !whitelistData) {
-        throw new Error('Código de convite inválido ou já utilizado.');
-      }
+    if (authError) throw authError;
+    if (!authData.user) throw new Error('Falha ao criar usuário.');
 
-      // 2. Calcular a Data e o Status Vitalício (LÓGICA NOVA APLICADA AQUI)
-      // O App decide a data baseado na turma do convite.
-      const { data: cohortData } = await supabase
-        .from('cohorts')
-        .select('validity_days')
-        .eq('id', whitelistData.cohort_id)
-        .single();
+    // 3) ETAPA 2: Atualizar Perfil com dados básicos (SEM turma/validade aqui)
+    // Turma/validade serão gravadas pela RPC no banco, de forma transacional.
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({
+        full_name: fullName.toUpperCase(),
+        role: 'user',
+        // NÃO EXISTE ticket_code no banco — não use.
+      })
+      .eq('id', authData.user.id);
 
-      const days = cohortData?.validity_days || 365;
-
-      // Se a validade for maior que 20 mil dias (ex: 100 anos), damos o Crachá Vitalício
-      const isLifetime = days > 20000;
-
-      let finalExpiration: string | null = null;
-
-      // Se NÃO for vitalício, calculamos a data de vencimento. Se for, fica NULL.
-      if (!isLifetime) {
-        const dateCalc = new Date();
-        dateCalc.setDate(dateCalc.getDate() + days);
-        finalExpiration = dateCalc.toISOString();
-      }
-
-      // 3. ETAPA 1: Criar o Login (Auth)
-      // Enviamos APENAS email e senha. O "Porteiro Simples" (SQL) vai deixar entrar sem erro.
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: email.trim(),
-        password: password,
-        // IMPORTANTE: Não enviamos 'options.data' aqui para não conflitar com o Trigger SQL
-      });
-
-      if (authError) throw authError;
-
-      if (authData.user) {
-        // 4. ETAPA 2: Atualizar o Perfil (Enriquecimento)
-        // Agora que o usuário existe (criado pelo SQL ou Auth), fazemos o UPDATE na linha existente.
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            full_name: fullName.toUpperCase(),
-            cohort_id: whitelistData.cohort_id,
-            ticket_code: inviteCode.trim().toUpperCase(),
-            role: 'user',
-            is_active: true,
-            is_lifetime: isLifetime, // <--- NOVA LINHA: Crachá Vitalício
-            expires_at: finalExpiration, // <--- NOVA LINHA: Data correta ou Null
-          })
-          .eq('id', authData.user.id);
-
-        if (updateError) {
-          console.error('Aviso: Usuário criado, mas erro ao atualizar perfil.', updateError);
-          // Não lançamos erro fatal aqui para não bloquear o usuário que já criou login.
-          // O Admin pode corrigir depois se necessário.
-        } else {
-          // Se deu certo atualizar o perfil, queimamos o convite.
-          await supabase
-            .from('whitelist')
-            .update({ used_at: new Date().toISOString() })
-            .eq('id', whitelistData.id);
-        }
-
-        // Sucesso Total! Recarrega a página para entrar no sistema.
-        window.location.reload();
-      }
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Erro ao realizar cadastro.' });
-    } finally {
-      setIsLoading(false);
+    if (updateError) {
+      console.error('Aviso: usuário criado, mas erro ao atualizar perfil (nome/role).', updateError);
+      // Não bloqueia: login já foi criado
     }
-  };
+
+    // 4) Matrícula blindada: seta cohort_id/expires_at/is_active e queima whitelist (used_at + used_by)
+    const { error: enrollError } = await supabase.rpc('enroll_with_code', {
+      p_user_id: authData.user.id,
+      p_code: cleanedCode,
+    });
+
+    if (enrollError) {
+      const msg =
+        (enrollError.message || '').includes('MATRICULA_INVALIDA_OU_JA_USADA')
+          ? 'Matrícula inválida ou já utilizada.'
+          : (enrollError.message || '').includes('COHORT_SEM_VALIDADE')
+          ? 'Turma sem validade configurada.'
+          : 'Falha ao validar matrícula.';
+      throw new Error(msg);
+    }
+
+    // 5) Entrar no sistema já com perfil completo
+    window.location.reload();
+  } catch (err: any) {
+    setMessage({ type: 'error', text: err.message || 'Erro ao realizar cadastro.' });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   // AÇÃO: RECUPERAR SENHA
   const handleForgotPassword = async (e: React.FormEvent) => {
